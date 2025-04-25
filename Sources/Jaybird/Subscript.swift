@@ -1,5 +1,5 @@
 // Jaybird
-// JaybirdTests.swift
+// Subscript.swift
 //
 // MIT License
 //
@@ -23,20 +23,29 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-@testable import Jaybird
-import Testing
+extension JSON {
 
-@Test
-func example() {
-    var json: JSON = [
-        "Foo": [1],
-        "Bar": "Baz",
-        "Baz": nil
-    ]
-    json["Baz"] = 1.2
-    #expect(json == [
-        "Foo": [1],
-        "Bar": "Baz",
-        "Baz": 1.2
-    ])
+    public enum Subscript: Equatable, Hashable, Sendable {
+        case key(String)
+        case index(Int)
+    }
+
+}
+
+public protocol JSONSubscriptConvertible {
+
+    var jsonSubscript: JSON.Subscript { get }
+
+}
+
+extension String: JSONSubscriptConvertible {
+
+    public var jsonSubscript: JSON.Subscript { .key(self) }
+
+}
+
+extension Int: JSONSubscriptConvertible {
+
+    public var jsonSubscript: JSON.Subscript { .index(self) }
+
 }

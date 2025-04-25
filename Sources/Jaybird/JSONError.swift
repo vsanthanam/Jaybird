@@ -1,5 +1,5 @@
 // Jaybird
-// JaybirdTests.swift
+// JSONError.swift
 //
 // MIT License
 //
@@ -23,20 +23,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-@testable import Jaybird
-import Testing
+public enum JSONError: Error {
 
-@Test
-func example() {
-    var json: JSON = [
-        "Foo": [1],
-        "Bar": "Baz",
-        "Baz": nil
-    ]
-    json["Baz"] = 1.2
-    #expect(json == [
-        "Foo": [1],
-        "Bar": "Baz",
-        "Baz": 1.2
-    ])
+    case invalidSubscript
+
+    case keyNotFound
+
+    case indexOutOfBounds
+
+    case illegalBoolConversion
+
+    case illegalLiteralConversion
+
+    case illegalNumberConversion
+
+    case illegalStringConversion
+
+    case illegalIntConversion
+
+    case illegalDoubleConversion
+
 }
