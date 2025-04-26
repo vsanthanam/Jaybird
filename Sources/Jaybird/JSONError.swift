@@ -33,6 +33,10 @@ public enum JSONError: Error {
 
     case illegalBoolConversion
 
+    case illegalArrayConversion
+
+    case illegalObjectConversion
+
     case illegalLiteralConversion
 
     case illegalNumberConversion
@@ -42,5 +46,7 @@ public enum JSONError: Error {
     case illegalIntConversion
 
     case illegalDoubleConversion
+
+    case invalidJSON
 
 }

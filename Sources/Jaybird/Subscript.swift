@@ -49,3 +49,9 @@ extension Int: JSONSubscriptConvertible {
     public var jsonSubscript: JSON.Subscript { .index(self) }
 
 }
+
+extension JSONSubscriptConvertible where Self: RawRepresentable, RawValue: JSONSubscriptConvertible {
+
+    public var jsonSubscript: JSON.Subscript { rawValue.jsonSubscript }
+
+}

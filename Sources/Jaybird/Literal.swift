@@ -23,9 +23,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+import Foundation
+
 extension JSON {
 
-    public enum Literal: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, ExpressibleByNilLiteral {
+    public enum Literal: String, Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, ExpressibleByNilLiteral {
 
         public init(
             _ convertible: some JSONLiteralConvertible
@@ -69,7 +71,9 @@ extension JSON {
             self.init(value)
         }
 
-        public init(nilLiteral: Void) {
+        public init(
+            nilLiteral: Void
+        ) {
             self = .null
         }
 

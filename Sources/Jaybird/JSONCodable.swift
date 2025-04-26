@@ -33,7 +33,7 @@ public protocol JSONEncodable {
 
 public protocol JSONDecodable {
 
-    init(from json: JSON) throws
+    init(json: JSON) throws
 
 }
 
@@ -43,7 +43,7 @@ extension JSON: JSONCodable {
         self
     }
 
-    public init(from json: JSON) throws {
+    public init(json: JSON) throws {
         self = json
     }
 
@@ -55,7 +55,7 @@ extension Bool: JSONCodable {
         self ? .literal(.true) : .literal(.false)
     }
 
-    public init(from json: JSON) throws {
+    public init(json: JSON) throws {
         self = try json.boolValue
     }
 
@@ -67,7 +67,7 @@ extension JSON.Literal: JSONCodable {
         .literal(self)
     }
 
-    public init(from json: JSON) throws {
+    public init(json: JSON) throws {
         self = try json.literalValue
     }
 
@@ -79,7 +79,7 @@ extension Int: JSONCodable {
         .number(.int(self))
     }
 
-    public init(from json: JSON) throws {
+    public init(json: JSON) throws {
         self = try json.intValue
     }
 
@@ -91,7 +91,7 @@ extension Double: JSONCodable {
         .number(.double(self))
     }
 
-    public init(from json: JSON) throws {
+    public init(json: JSON) throws {
         self = try json.doubleValue
     }
 
@@ -103,7 +103,7 @@ extension JSON.Number: JSONCodable {
         .number(self)
     }
 
-    public init(from json: JSON) throws {
+    public init(json: JSON) throws {
         self = try json.numberValue
     }
 
@@ -115,32 +115,60 @@ extension String: JSONCodable {
         .string(self)
     }
 
-    public init(from json: JSON) throws {
+    public init(json: JSON) throws {
         self = try json.stringValue
     }
 
 }
 
-extension [JSON]: JSONCodable {
+extension Array: JSONEncodable where Element: JSONEncodable {
 
     public func encodeToJSON() -> JSON {
-        .array(self)
-    }
-
-    public init(from json: JSON) throws {
-        self = try json.arrayValue
+        .array(map { element in element.encodeToJSON() })
     }
 
 }
 
-extension [String: JSON]: JSONCodable {
+extension Array: JSONDecodable where Element: JSONDecodable {
 
-    public func encodeToJSON() -> JSON {
-        .object(self)
+    public init(json: JSON) throws {
+        self = try json.arrayValue.map { json in try Element(json: json) }
     }
 
-    public init(from json: JSON) throws {
-        self = try json.objectValue
+}
+
+extension Dictionary: JSONEncodable where Key == String, Value: JSONEncodable {
+
+    public func encodeToJSON() -> JSON {
+        .object(mapValues { value in value.encodeToJSON() })
+    }
+
+}
+
+extension Dictionary: JSONDecodable where Key == String, Value: JSONDecodable {
+
+    public init(json: JSON) throws {
+        self = try json.objectValue.mapValues { json in try Value(json: json) }
+    }
+
+}
+
+extension JSONEncodable where Self: RawRepresentable, RawValue: JSONEncodable {
+
+    public func encodeToJSON() -> JSON {
+        rawValue.encodeToJSON()
+    }
+
+}
+
+extension JSONDecodable where Self: RawRepresentable, RawValue: JSONDecodable {
+
+    public init(json: JSON) throws {
+        let rawValue = try RawValue(json: json)
+        guard let value = Self(rawValue: rawValue) else {
+            throw JSONError.invalidJSON
+        }
+        self = value
     }
 
 }

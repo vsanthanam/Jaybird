@@ -23,12 +23,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+import Foundation
+
 public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral, ExpressibleByStringLiteral, ExpressibleByArrayLiteral, ExpressibleByDictionaryLiteral, ExpressibleByNilLiteral {
 
     public init(
         _ encodable: some JSONEncodable
     ) {
         self = encodable.encodeToJSON()
+    }
+
+    public init(
+        _ data: Data
+    ) throws {
+        self = try Parser()(data)
     }
 
     case literal(Literal)
@@ -70,7 +78,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
             case let .object(object):
                 object
             case .literal, .array, .number, .string:
-                throw JSONError.illegalLiteralConversion
+                throw JSONError.illegalObjectConversion
             }
         }
     }
@@ -81,7 +89,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
             case let .array(array):
                 array
             case .literal, .object, .number, .string:
-                throw JSONError.illegalLiteralConversion
+                throw JSONError.illegalArrayConversion
             }
         }
     }
@@ -296,13 +304,16 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     public init(
         dictionaryLiteral elements: (Key, Value)...
     ) {
-        self.init(elements.reduce(into: [:]) { prev, pair in
+        let map: [Key: Value] = elements.reduce(into: [:]) { prev, pair in
             let (key, value) = pair
             prev[key] = value
-        })
+        }
+        self.init(map)
     }
 
-    public init(nilLiteral: Void) {
+    public init(
+        nilLiteral: Void
+    ) {
         self = .null
     }
 
