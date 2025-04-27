@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "3F37657B-845C-46F2-A6C8-50848E0CEB10",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "JaybirdTests",
+        "name" : "JaybirdTests"
+      }
+    }
+  ],
+  "version" : 1
+}

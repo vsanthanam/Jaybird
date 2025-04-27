@@ -27,6 +27,8 @@ import Foundation
 
 public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral, ExpressibleByStringLiteral, ExpressibleByArrayLiteral, ExpressibleByDictionaryLiteral, ExpressibleByNilLiteral {
 
+    @inline(__always)
+    @inlinable
     public init(
         _ encodable: some JSONEncodable
     ) {
@@ -36,7 +38,13 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     public init(
         _ data: Data
     ) throws {
-        self = try Parser()(data)
+        self = try JSONParser.parse(data)
+    }
+
+    public init(
+        _ bytes: [UInt8]
+    ) throws {
+        try self.init(Data(bytes))
     }
 
     case literal(Literal)
@@ -138,6 +146,14 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         atIndex index: Int
     ) throws -> JSON {
         try value(forSubscript: .index(index))
+    }
+
+    public func value<each T>(at path: repeat each T) throws -> JSON where repeat each T: JSONSubscriptConvertible {
+        var json = self
+        for component in repeat each path {
+            json = try json.value(forSubscript: component)
+        }
+        return json
     }
 
     public func value(
