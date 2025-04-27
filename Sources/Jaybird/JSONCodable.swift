@@ -51,6 +51,8 @@ extension JSON: JSONCodable {
 
 extension Bool: JSONCodable {
 
+    @inline(__always)
+    @inlinable
     public func encodeToJSON() -> JSON {
         self ? .literal(.true) : .literal(.false)
     }
@@ -63,6 +65,8 @@ extension Bool: JSONCodable {
 
 extension JSON.Literal: JSONCodable {
 
+    @inline(__always)
+    @inlinable
     public func encodeToJSON() -> JSON {
         .literal(self)
     }
@@ -75,8 +79,10 @@ extension JSON.Literal: JSONCodable {
 
 extension Int: JSONCodable {
 
+    @inline(__always)
+    @inlinable
     public func encodeToJSON() -> JSON {
-        .number(.int(self))
+        .numeric(.int(self))
     }
 
     public init(json: JSON) throws {
@@ -87,8 +93,10 @@ extension Int: JSONCodable {
 
 extension Double: JSONCodable {
 
+    @inline(__always)
+    @inlinable
     public func encodeToJSON() -> JSON {
-        .number(.double(self))
+        .numeric(.double(self))
     }
 
     public init(json: JSON) throws {
@@ -97,20 +105,24 @@ extension Double: JSONCodable {
 
 }
 
-extension JSON.Number: JSONCodable {
+extension JSON.Numeric: JSONCodable {
 
+    @inline(__always)
+    @inlinable
     public func encodeToJSON() -> JSON {
-        .number(self)
+        .numeric(self)
     }
 
     public init(json: JSON) throws {
-        self = try json.numberValue
+        self = try json.numericValue
     }
 
 }
 
 extension String: JSONCodable {
 
+    @inline(__always)
+    @inlinable
     public func encodeToJSON() -> JSON {
         .string(self)
     }
@@ -123,6 +135,8 @@ extension String: JSONCodable {
 
 extension Array: JSONEncodable where Element: JSONEncodable {
 
+    @inline(__always)
+    @inlinable
     public func encodeToJSON() -> JSON {
         .array(map { element in element.encodeToJSON() })
     }
@@ -139,6 +153,8 @@ extension Array: JSONDecodable where Element: JSONDecodable {
 
 extension Dictionary: JSONEncodable where Key == String, Value: JSONEncodable {
 
+    @inline(__always)
+    @inlinable
     public func encodeToJSON() -> JSON {
         .object(mapValues { value in value.encodeToJSON() })
     }
@@ -155,6 +171,8 @@ extension Dictionary: JSONDecodable where Key == String, Value: JSONDecodable {
 
 extension JSONEncodable where Self: RawRepresentable, RawValue: JSONEncodable {
 
+    @inline(__always)
+    @inlinable
     public func encodeToJSON() -> JSON {
         rawValue.encodeToJSON()
     }

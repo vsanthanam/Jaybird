@@ -39,7 +39,7 @@ public enum JSONError: Error {
 
     case illegalLiteralConversion
 
-    case illegalNumberConversion
+    case illegalNumericConversion
 
     case illegalStringConversion
 

@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Jaybird}",
+            "name": "Debug JaybirdBenchmark",
+            "program": "${workspaceFolder:Jaybird}/.build/debug/JaybirdBenchmark",
+            "preLaunchTask": "swift: Build Debug JaybirdBenchmark"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Jaybird}",
+            "name": "Release JaybirdBenchmark",
+            "program": "${workspaceFolder:Jaybird}/.build/release/JaybirdBenchmark",
+            "preLaunchTask": "swift: Build Release JaybirdBenchmark"
+        }
+    ]
+}

@@ -16,14 +16,52 @@ let package = Package(
             ]
         )
     ],
+    dependencies: [
+        .package(
+            url: "https://github.com/ordo-one/package-benchmark",
+            from: "1.0.0"
+        )
+    ],
     targets: [
         .target(
-            name: "Jaybird"
+            name: "Jaybird",
+            dependencies: [
+                "Parser"
+            ]
+        ),
+        .target(
+            name: "Parser",
+            publicHeadersPath: "."
         ),
         .testTarget(
             name: "JaybirdTests",
             dependencies: [
                 "Jaybird"
+            ]
+        ),
+        .executableTarget(
+            name: "JaybirdBenchmark",
+            dependencies: [
+                .product(name: "Benchmark", package: "package-benchmark"),
+                "Jaybird"
+            ],
+            path: "Benchmarks/JaybirdBenchmark",
+            resources: [
+                .copy("benchmark-micro.json"),
+                .copy("benchmark-micro-pretty.json"),
+                .copy("benchmark-2kb.json"),
+                .copy("benchmark-2kb-pretty.json"),
+                .copy("benchmark-50kb.json"),
+                .copy("benchmark-50kb-pretty.json"),
+                .copy("benchmark-5mb.json"),
+                .copy("benchmark-5mb-pretty.json"),
+                .copy("benchmark-50mb.json"),
+                .copy("benchmark-50mb-pretty.json"),
+                .copy("benchmark-strings.json"),
+                .copy("benchmark-numeric.json"),
+            ],
+            plugins: [
+                .plugin(name: "BenchmarkPlugin", package: "package-benchmark")
             ]
         )
     ]

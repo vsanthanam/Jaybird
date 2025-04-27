@@ -27,119 +27,173 @@ import Foundation
 
 public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral, ExpressibleByStringLiteral, ExpressibleByArrayLiteral, ExpressibleByDictionaryLiteral, ExpressibleByNilLiteral {
 
+    // MARK: - Initializers
+    
+    /// Create a `JSON` value from a ``JSONEncodable`` type
+    /// - Parameter encodable: The encodable type to convert to JSON
     public init(
         _ encodable: some JSONEncodable
     ) {
         self = encodable.encodeToJSON()
     }
-
+    
+    /// Create a `JSON` value by deserializing a byte buffer containing UTF-8 encoded JSON string
+    /// - Parameter data: The byte buffer to deserialize
     public init(
         _ data: Data
     ) throws {
-        self = try Parser()(data)
+        self = try Parser.parse(data)
     }
+    
+    /// Create a `JSON` value by deserializing a Swift string
+    /// - Parameter string: The string to deserialize
+    public init(
+        deserializing string: String
+    ) throws {
+        guard let data = string.data(using: .utf8) else {
+            throw JSONError.invalidJSON
+        }
+        try self.init(data)
+    }
+    
+    /// Create a `JSON` value by deserializing an array of bytes that represent a UTF-8 encoded JSON string
+    /// - Parameter bytes: The bytes to deserialize
+    public init(
+        _ bytes: [UInt8]
+    ) throws {
+        try self.init(Data(bytes))
+    }
+    
+    // MARK: - API
 
+    /// A JSON literal value
     case literal(Literal)
 
+    /// A JSON object
     case object([String: JSON])
 
+    /// A JSON array
     case array([JSON])
 
-    case number(Number)
+    /// A JSON numeric value
+    case numeric(Numeric)
 
+    /// A JSON string
     case string(String)
 
+    /// A null JSON value
     public static let null: JSON = .literal(.null)
-
+    
+    /// A zero JSON value
+    public static let zero = JSON(0)
+    
+    /// The JSON value as a literal
     public var literalValue: Literal {
         get throws {
             switch self {
             case let .literal(literal):
                 literal
-            case .object, .array, .number, .string:
+            case .object, .array, .numeric, .string:
                 throw JSONError.illegalLiteralConversion
             }
         }
     }
-
+    
+    /// The JSON value as a boolean
     public var boolValue: Bool {
         get throws {
             try literalValue.boolValue
         }
     }
-
+    
+    /// Whether or not the JSON value is a null value
     public var isNull: Bool {
         (try? literalValue.isNull) ?? false
     }
-
+    
+    /// The JSON value as an object
     public var objectValue: [String: JSON] {
         get throws {
             switch self {
             case let .object(object):
                 object
-            case .literal, .array, .number, .string:
+            case .literal, .array, .numeric, .string:
                 throw JSONError.illegalObjectConversion
             }
         }
     }
-
+    
+    /// The JSON value as an arrary
     public var arrayValue: [JSON] {
         get throws {
             switch self {
             case let .array(array):
                 array
-            case .literal, .object, .number, .string:
+            case .literal, .object, .numeric, .string:
                 throw JSONError.illegalArrayConversion
             }
         }
     }
-
-    public var numberValue: Number {
+    
+    /// The JSON value as a numeric
+    public var numericValue: Numeric {
         get throws {
             switch self {
-            case let .number(number):
-                number
+            case let .numeric(numeric):
+                numeric
             case .literal, .object, .array, .string:
-                throw JSONError.illegalNumberConversion
+                throw JSONError.illegalNumericConversion
             }
         }
     }
-
+    
+    /// The JSON value as a Swift integer
     public var intValue: Int {
         get throws {
-            try numberValue.intValue
+            try numericValue.intValue
         }
     }
-
+    
+    /// The JSON value as a Swift double
     public var doubleValue: Double {
         get throws {
-            try numberValue.doubleValue
+            try numericValue.doubleValue
         }
     }
-
+    
+    /// The JSON value as a Swift string
     public var stringValue: String {
         get throws {
             switch self {
             case let .string(string):
                 string
-            case .literal, .object, .array, .number:
+            case .literal, .object, .array, .numeric:
                 throw JSONError.illegalStringConversion
             }
         }
     }
-
+    
+    /// Retrieve a value from the JSON object using a specified key
+    /// - Parameter key: A string key to use for lookup
+    /// - Returns: The JSON value at the specified key
     public func value(
         forKey key: String
     ) throws -> JSON {
         try value(forSubscript: .key(key))
     }
-
+    
+    /// Retrieve a value from the JSON object using a specified index
+    /// - Parameter index: An integer index to use for lookup
+    /// - Returns: The JSON value at the specified index
     public func value(
         atIndex index: Int
     ) throws -> JSON {
         try value(forSubscript: .index(index))
     }
-
+    
+    /// Retrieve a value from the JSON object using a specified subscript
+    /// - Parameter subscript: A subscript to use for lookup
+    /// - Returns: The JSON value at the specified subscript
     public func value(
         forSubscript subscript: Subscript
     ) throws -> JSON {
@@ -163,26 +217,42 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         }
     }
 
+    /// Retrieve a value from the JSON object using a specified subscript
+    /// - Parameter subscript: A subscript to use for lookup
+    /// - Returns: The JSON value at the specified subscript
     public func value(
         forSubscript subscript: some JSONSubscriptConvertible
     ) throws -> JSON {
         try value(forSubscript: `subscript`.jsonSubscript)
     }
 
+    
+    /// Set a value in the JSON object using a specified key
+    /// - Parameters:
+    ///   - value: The JSON value to set
+    ///   - key: A string key to use for lookup
     public mutating func setValue(
         _ value: JSON,
         forKey key: String
     ) throws {
         try setValue(value, forSubscript: .key(key))
     }
-
+    
+    /// Set a value in the JSON object using a specified index
+    /// - Parameters:
+    ///   - value: The JSON value to set
+    ///   - index: An integer index to use for lookup
     public mutating func setValue(
         _ value: JSON,
         atIndex index: Int
     ) throws {
         try setValue(value, forSubscript: .index(index))
     }
-
+    
+    /// Set a value in the JSON object using a specified subscript
+    /// - Parameters:
+    ///   - value: The JSON value to set
+    ///   - subscript: A subscript to use for lookup
     public mutating func setValue(
         _ value: JSON,
         forSubscript subscript: Subscript
@@ -200,12 +270,16 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         case (.array, _),
              (.object, _),
              (.string, _),
-             (.number, _),
+             (.numeric, _),
              (.literal, _):
             throw JSONError.invalidSubscript
         }
     }
 
+    /// Set a value in the JSON object using a specified subscript
+    /// - Parameters:
+    ///   - value: The JSON value to set
+    ///   - subscript: A subscript to use for lookup
     public mutating func setValue(
         _ value: JSON,
         forSubscript subscript: some JSONSubscriptConvertible
@@ -256,6 +330,8 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
             self[`subscript`.jsonSubscript] = newValue
         }
     }
+    
+    // MARK: - ExpressibleByBooleanLiteral
 
     public typealias BooleanLiteralType = Bool
 
@@ -264,7 +340,9 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ) {
         self.init(value)
     }
-
+    
+    // MARK: - ExpressibleByIntegerLiteral
+    
     public typealias IntegerLiteralType = Int
 
     public init(
@@ -272,6 +350,8 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ) {
         self.init(value)
     }
+    
+    // MARK: - ExpressibleByFloatLiteral
 
     public typealias FloatLiteralType = Double
 
@@ -281,6 +361,8 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         self.init(value)
     }
 
+    // MARK: - ExpressibleByStringLiteral
+    
     public typealias StringLiteralType = String
 
     public init(
@@ -289,6 +371,8 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         self.init(value)
     }
 
+    // MARK: - ExpressibleByArrayLiteral
+    
     public typealias ArrayLiteralElement = JSON
 
     public init(
@@ -296,6 +380,8 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ) {
         self.init(elements)
     }
+    
+    // MARK: - ExpressibleByDictionaryLiteral
 
     public typealias Key = String
 
@@ -310,6 +396,8 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         }
         self.init(map)
     }
+    
+    // MARK: - ExpressibleByNilLiteral
 
     public init(
         nilLiteral: Void
