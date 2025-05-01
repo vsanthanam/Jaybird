@@ -10,6 +10,14 @@
 #include <ctype.h>
 #include <float.h>
 
+// SIMD headers based on architecture
+#if defined(__x86_64__) || defined(_M_X64)
+#include <emmintrin.h> // SSE2
+#include <immintrin.h> // AVX2 if available
+#elif defined(__aarch64__) || defined(__arm64__)
+#include <arm_neon.h>
+#endif
+
 // Define memory arena block size (adjust based on profiling)
 #define JSON_ARENA_BLOCK_SIZE (64 * 1024)    // 64KB blocks for small files
 #define JSON_ARENA_LARGE_SIZE (256 * 1024)   // 256KB blocks for large files
@@ -616,7 +624,69 @@ static uint8_t json_next(json_parser_t* parser) {
 
 // SIMD-optimized whitespace consumption
 static void json_consume_whitespace(json_parser_t* parser) {
-    // Simple and fast scalar implementation
+#if defined(__x86_64__) || defined(_M_X64)
+    // SSE2 implementation for x86-64
+    const size_t remaining = parser->length - parser->index;
+    
+    // Fast path for the common case - no or minimal whitespace
+    // Check the first character directly before using SIMD
+    if (remaining > 0) {
+        uint8_t c = parser->input[parser->index];
+        if (!(c == ' ' || c == '\t' || c == '\n' || c == '\r')) {
+            return;  // No whitespace to skip
+        }
+        
+        // Check the second character if available
+        if (remaining > 1) {
+            c = parser->input[parser->index + 1];
+            if (!(c == ' ' || c == '\t' || c == '\n' || c == '\r')) {
+                parser->index++;
+                return;  // Just one whitespace character
+            }
+        }
+    }
+    
+    // More than 1 whitespace, use SIMD for blocks
+    if (remaining >= 16) {
+        // Process 16 bytes at a time with SSE2
+        const __m128i space = _mm_set1_epi8(' ');
+        const __m128i tab = _mm_set1_epi8('\t');
+        const __m128i newline = _mm_set1_epi8('\n');
+        const __m128i carriage = _mm_set1_epi8('\r');
+        
+        while (parser->index + 16 <= parser->length) {
+            // Load 16 bytes from input
+            __m128i input = _mm_loadu_si128((__m128i*)(parser->input + parser->index));
+            
+            // Compare with whitespace characters
+            __m128i eq_space = _mm_cmpeq_epi8(input, space);
+            __m128i eq_tab = _mm_cmpeq_epi8(input, tab);
+            __m128i eq_newline = _mm_cmpeq_epi8(input, newline);
+            __m128i eq_cr = _mm_cmpeq_epi8(input, carriage);
+            
+            // Combine results with OR
+            __m128i is_whitespace = _mm_or_si128(
+                _mm_or_si128(eq_space, eq_tab),
+                _mm_or_si128(eq_newline, eq_cr)
+            );
+            
+            // Create mask
+            unsigned int mask = _mm_movemask_epi8(is_whitespace);
+            
+            // Find first non-whitespace character
+            if (mask != 0xFFFF) {
+                // Find the position of the first 0 bit
+                unsigned int trailing_ones = __builtin_ctz(~mask);
+                parser->index += trailing_ones;
+                return;
+            }
+            
+            // All 16 characters were whitespace, move forward
+            parser->index += 16;
+        }
+    }
+    
+    // Handle remaining bytes with scalar code
     while (parser->index < parser->length) {
         uint8_t c = parser->input[parser->index];
         if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
@@ -625,6 +695,98 @@ static void json_consume_whitespace(json_parser_t* parser) {
             break;
         }
     }
+#elif defined(__aarch64__) || defined(__arm64__)
+    // NEON implementation for ARM64
+    const size_t remaining = parser->length - parser->index;
+    
+    // Fast path for the common case - no or minimal whitespace
+    // Check the first character directly before using SIMD
+    if (remaining > 0) {
+        uint8_t c = parser->input[parser->index];
+        if (!(c == ' ' || c == '\t' || c == '\n' || c == '\r')) {
+            return;  // No whitespace to skip
+        }
+        
+        // Check the second character if available
+        if (remaining > 1) {
+            c = parser->input[parser->index + 1];
+            if (!(c == ' ' || c == '\t' || c == '\n' || c == '\r')) {
+                parser->index++;
+                return;  // Just one whitespace character
+            }
+        }
+    }
+    
+    // More than 1 whitespace, use SIMD for blocks
+    if (remaining >= 16) {
+        // Process 16 bytes at a time with NEON
+        const uint8x16_t space = vdupq_n_u8(' ');
+        const uint8x16_t tab = vdupq_n_u8('\t');
+        const uint8x16_t newline = vdupq_n_u8('\n');
+        const uint8x16_t carriage = vdupq_n_u8('\r');
+        
+        while (parser->index + 16 <= parser->length) {
+            // Load 16 bytes from input
+            uint8x16_t input = vld1q_u8(parser->input + parser->index);
+            
+            // Compare with whitespace characters
+            uint8x16_t eq_space = vceqq_u8(input, space);
+            uint8x16_t eq_tab = vceqq_u8(input, tab);
+            uint8x16_t eq_newline = vceqq_u8(input, newline);
+            uint8x16_t eq_cr = vceqq_u8(input, carriage);
+            
+            // Combine results with OR
+            uint8x16_t is_whitespace = vorrq_u8(
+                vorrq_u8(eq_space, eq_tab),
+                vorrq_u8(eq_newline, eq_cr)
+            );
+            
+            // Convert to bitmap - find first non-whitespace byte
+            uint64x2_t not_white = vreinterpretq_u64_u8(vmvnq_u8(is_whitespace));
+            uint64_t low_bits = vgetq_lane_u64(not_white, 0);
+            uint64_t high_bits = vgetq_lane_u64(not_white, 1);
+            
+            // Fast check if all are whitespace (most common scenario in formatted JSON)
+            if (low_bits == 0 && high_bits == 0) {
+                parser->index += 16;
+                continue;
+            }
+            
+            // Find position of first non-whitespace
+            if (low_bits != 0) {
+                // Find first set bit in low 8 bytes
+                unsigned long pos = __builtin_ctzll(low_bits) / 8;
+                parser->index += pos;
+                return;
+            } else {
+                // Find first set bit in high 8 bytes
+                unsigned long pos = __builtin_ctzll(high_bits) / 8;
+                parser->index += 8 + pos;
+                return;
+            }
+        }
+    }
+    
+    // Handle remaining bytes with scalar code
+    while (parser->index < parser->length) {
+        uint8_t c = parser->input[parser->index];
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+            parser->index++;
+        } else {
+            break;
+        }
+    }
+#else
+    // Fallback scalar implementation for other platforms
+    while (parser->index < parser->length) {
+        uint8_t c = parser->input[parser->index];
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+            parser->index++;
+        } else {
+            break;
+        }
+    }
+#endif
 }
 
 // Parse BOM (Byte Order Mark)
@@ -765,9 +927,10 @@ static json_error_t json_parse_string(json_parser_t* parser, char** out_str, siz
         }
     }
     
-    // Fast path: if the string is small and has no escapes
-    if (!has_escapes && string_length <= SMALL_STRING_SIZE && looking_index < parser->length && parser->input[looking_index-1] == '"') {
-        // We can directly return this string without using the temp buffer
+    // If the string is small, has no escapes, and we found its end
+    if (!has_escapes && string_length <= SMALL_STRING_SIZE && 
+        looking_index < parser->length && parser->input[looking_index-1] == '"') {
+        // We can directly create a value with this string
         *out_str = (char*)malloc(string_length + 1);
         if (!*out_str) {
             return JSON_OUT_OF_MEMORY;
@@ -780,35 +943,19 @@ static json_error_t json_parse_string(json_parser_t* parser, char** out_str, siz
         (*out_str)[string_length] = '\0';
         *out_len = string_length;
         
-        // Update parser index to skip past the closing quote
-        parser->index = looking_index;
-        
+        // Update parser position
+        parser->index = looking_index; // This skips past the closing quote
         return JSON_NO_ERROR;
     }
     
-    // Fall back to the normal path for strings with escapes or long strings
-    // Reset looking index in case we broke out early
+    // Fallback to parsing with escapes for complex strings
+    // Reset position to the start (after quote) since we'll parse again
     parser->index = start_index;
     
-    // Check if we can estimate based on remaining input size
-    // This is an optimization to avoid reallocations for large strings
-    size_t estimate_size = 0;
-    size_t remaining = parser->length - parser->index;
-    if (remaining > 0) {
-        // Estimate: remaining input or a reasonable max size
-        estimate_size = (remaining < 16384) ? remaining : 16384;
-    } else {
-        estimate_size = 128; // Default initial size
-    }
+    // Clear temp buffer for use
+    json_temp_buffer_clear(parser);
     
-    // Ensure temp buffer has enough space
-    err = json_temp_buffer_ensure_capacity(parser, estimate_size);
-    if (err != JSON_NO_ERROR) {
-        return err;
-    }
-    parser->temp_size = 0;
-    
-    // Use single pass with direct writing to temp buffer
+    // Parse the string with escapes
     bool escape_mode = false;
     
     while (json_has_more(parser)) {
