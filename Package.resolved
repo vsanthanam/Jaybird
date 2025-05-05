@@ -1,5 +1,5 @@
 {
-  "originHash" : "6a40ecacc0946199071bd0fbb928c454a07f5f8409c53fafc35ae8d008bec0bc",
+  "originHash" : "655c062e155e3b20b906eda6b7b41f01af48bd609cb3abd67ae65d7a09fe4b37",
   "pins" : [
     {
       "identity" : "hdrhistogram-swift",

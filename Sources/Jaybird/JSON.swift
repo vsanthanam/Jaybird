@@ -28,7 +28,7 @@ import Foundation
 public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral, ExpressibleByStringLiteral, ExpressibleByArrayLiteral, ExpressibleByDictionaryLiteral, ExpressibleByNilLiteral {
 
     // MARK: - Initializers
-    
+
     /// Create a `JSON` value from a ``JSONEncodable`` type
     /// - Parameter encodable: The encodable type to convert to JSON
     public init(
@@ -36,7 +36,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ) {
         self = encodable.encodeToJSON()
     }
-    
+
     /// Create a `JSON` value by deserializing a byte buffer containing UTF-8 encoded JSON string
     /// - Parameter data: The byte buffer to deserialize
     public init(
@@ -44,7 +44,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ) throws {
         self = try Parser.parse(data)
     }
-    
+
     /// Create a `JSON` value by deserializing a Swift string
     /// - Parameter string: The string to deserialize
     public init(
@@ -55,7 +55,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         }
         try self.init(data)
     }
-    
+
     /// Create a `JSON` value by deserializing an array of bytes that represent a UTF-8 encoded JSON string
     /// - Parameter bytes: The bytes to deserialize
     public init(
@@ -63,7 +63,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ) throws {
         try self.init(Data(bytes))
     }
-    
+
     // MARK: - API
 
     /// A JSON literal value
@@ -83,10 +83,10 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
 
     /// A null JSON value
     public static let null: JSON = .literal(.null)
-    
+
     /// A zero JSON value
     public static let zero = JSON(0)
-    
+
     /// The JSON value as a literal
     public var literalValue: Literal {
         get throws {
@@ -98,19 +98,19 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
             }
         }
     }
-    
+
     /// The JSON value as a boolean
     public var boolValue: Bool {
         get throws {
             try literalValue.boolValue
         }
     }
-    
+
     /// Whether or not the JSON value is a null value
     public var isNull: Bool {
         (try? literalValue.isNull) ?? false
     }
-    
+
     /// The JSON value as an object
     public var objectValue: [String: JSON] {
         get throws {
@@ -122,7 +122,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
             }
         }
     }
-    
+
     /// The JSON value as an arrary
     public var arrayValue: [JSON] {
         get throws {
@@ -134,7 +134,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
             }
         }
     }
-    
+
     /// The JSON value as a numeric
     public var numericValue: Numeric {
         get throws {
@@ -146,21 +146,21 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
             }
         }
     }
-    
+
     /// The JSON value as a Swift integer
     public var intValue: Int {
         get throws {
             try numericValue.intValue
         }
     }
-    
+
     /// The JSON value as a Swift double
     public var doubleValue: Double {
         get throws {
             try numericValue.doubleValue
         }
     }
-    
+
     /// The JSON value as a Swift string
     public var stringValue: String {
         get throws {
@@ -172,7 +172,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
             }
         }
     }
-    
+
     /// Retrieve a value from the JSON object using a specified key
     /// - Parameter key: A string key to use for lookup
     /// - Returns: The JSON value at the specified key
@@ -181,7 +181,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ) throws -> JSON {
         try value(forSubscript: .key(key))
     }
-    
+
     /// Retrieve a value from the JSON object using a specified index
     /// - Parameter index: An integer index to use for lookup
     /// - Returns: The JSON value at the specified index
@@ -190,7 +190,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ) throws -> JSON {
         try value(forSubscript: .index(index))
     }
-    
+
     /// Retrieve a value from the JSON object using a specified subscript
     /// - Parameter subscript: A subscript to use for lookup
     /// - Returns: The JSON value at the specified subscript
@@ -226,7 +226,6 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         try value(forSubscript: `subscript`.jsonSubscript)
     }
 
-    
     /// Set a value in the JSON object using a specified key
     /// - Parameters:
     ///   - value: The JSON value to set
@@ -237,7 +236,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ) throws {
         try setValue(value, forSubscript: .key(key))
     }
-    
+
     /// Set a value in the JSON object using a specified index
     /// - Parameters:
     ///   - value: The JSON value to set
@@ -248,7 +247,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ) throws {
         try setValue(value, forSubscript: .index(index))
     }
-    
+
     /// Set a value in the JSON object using a specified subscript
     /// - Parameters:
     ///   - value: The JSON value to set
@@ -330,7 +329,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
             self[`subscript`.jsonSubscript] = newValue
         }
     }
-    
+
     // MARK: - ExpressibleByBooleanLiteral
 
     public typealias BooleanLiteralType = Bool
@@ -340,9 +339,9 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ) {
         self.init(value)
     }
-    
+
     // MARK: - ExpressibleByIntegerLiteral
-    
+
     public typealias IntegerLiteralType = Int
 
     public init(
@@ -350,7 +349,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ) {
         self.init(value)
     }
-    
+
     // MARK: - ExpressibleByFloatLiteral
 
     public typealias FloatLiteralType = Double
@@ -362,7 +361,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     }
 
     // MARK: - ExpressibleByStringLiteral
-    
+
     public typealias StringLiteralType = String
 
     public init(
@@ -372,7 +371,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     }
 
     // MARK: - ExpressibleByArrayLiteral
-    
+
     public typealias ArrayLiteralElement = JSON
 
     public init(
@@ -380,7 +379,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ) {
         self.init(elements)
     }
-    
+
     // MARK: - ExpressibleByDictionaryLiteral
 
     public typealias Key = String
@@ -396,7 +395,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         }
         self.init(map)
     }
-    
+
     // MARK: - ExpressibleByNilLiteral
 
     public init(

@@ -28,6 +28,15 @@
 #include <ctype.h>
 #include <float.h>
 #include <math.h>
+#include <stdint.h>
+
+#if defined(__SSE2__) || defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64)
+    #include <emmintrin.h>
+    #define JAYBIRD_USE_SSE2 1
+#elif defined(__aarch64__) || defined(__ARM_NEON)
+    #include <arm_neon.h>
+    #define JAYBIRD_USE_NEON 1
+#endif
 
 #define JSON_ARENA_SMALL_BLOCK_SIZE    (64 * 1024)
 #define JSON_ARENA_STANDARD_BLOCK_SIZE (256 * 1024)
@@ -70,10 +79,8 @@ json_memory_arena_t* json_arena_init(size_t input_size) {
         arena->block_size = JSON_ARENA_SMALL_BLOCK_SIZE;
     } else if (input_size <= JSON_STANDARD_JSON_THRESHOLD) {
         arena->block_size = JSON_ARENA_STANDARD_BLOCK_SIZE;
-    } else if (input_size <= JSON_LARGE_JSON_THRESHOLD) {
-        arena->block_size = JSON_ARENA_LARGE_BLOCK_SIZE;
     } else {
-        arena->block_size = JSON_ARENA_MEGA_BLOCK_SIZE;
+        arena->block_size = JSON_ARENA_LARGE_BLOCK_SIZE;
     }
 
     return arena;
@@ -716,26 +723,145 @@ static json_error_t json_parse_number(json_parser_t* parser, json_value_t** out_
              return JSON_INVALID_NUMBER;
         }
     } else {
-        while (json_has_more(parser) && isdigit(json_peek(parser))) {
-            uint8_t digit = json_next(parser) - '0';
-            digit_count++;
+        size_t remaining_bytes = parser->length - parser->index;
+        
+        if (remaining_bytes >= 16) {
+            size_t digit_run_length = 0;
+            size_t current_index = parser->index;
             
-            if (!integer_overflow) {
-                if (int_value > (INT64_MAX - digit) / 10) {
-                    integer_overflow = true;
-                     // If overflow, start building double from current int value
-                     double_value = (double)int_value;
-                     is_double = true;
+#if defined(JAYBIRD_USE_SSE2)
+            // Constants for SSE2
+            const __m128i zero = _mm_setzero_si128();
+            const __m128i nine = _mm_set1_epi8('9');
+            const __m128i zero_char = _mm_set1_epi8('0');
+            
+            while (current_index + 16 <= parser->length) {
+                __m128i input = _mm_loadu_si128((const __m128i*)(parser->input + current_index));
+                
+                __m128i gt_or_eq_zero = _mm_cmpgt_epi8(input, _mm_sub_epi8(zero_char, _mm_set1_epi8(1)));
+                __m128i lt_or_eq_nine = _mm_cmplt_epi8(input, _mm_add_epi8(nine, _mm_set1_epi8(1)));
+                __m128i is_digit = _mm_and_si128(gt_or_eq_zero, lt_or_eq_nine);
+                
+                uint16_t mask = _mm_movemask_epi8(is_digit);
+                
+                if (mask != 0xFFFF) {
+                    unsigned int trailing_zeros = __builtin_ctz(~mask);
+                    digit_run_length += trailing_zeros;
+                    current_index += trailing_zeros;
+                    break;
                 }
-                if (!integer_overflow) {
-                     int_value = int_value * 10 + digit;
-                } else {
-                     double_value = double_value * 10.0 + (double)digit;
+                
+                digit_run_length += 16;
+                current_index += 16;
+            }
+#elif defined(JAYBIRD_USE_NEON)
+            // Constants for NEON
+            const uint8x16_t zero_char = vdupq_n_u8('0');
+            const uint8x16_t nine = vdupq_n_u8('9');
+            
+            while (current_index + 16 <= parser->length) {
+                uint8x16_t input = vld1q_u8(parser->input + current_index);
+                
+                uint8x16_t gt_or_eq_zero = vcgeq_u8(input, zero_char);
+                uint8x16_t lt_or_eq_nine = vcleq_u8(input, nine);
+                uint8x16_t is_digit = vandq_u8(gt_or_eq_zero, lt_or_eq_nine);
+                
+                uint64_t high = vgetq_lane_u64(vreinterpretq_u64_u8(is_digit), 1);
+                uint64_t low = vgetq_lane_u64(vreinterpretq_u64_u8(is_digit), 0);
+                
+                if (high != 0xFFFFFFFFFFFFFFFF || low != 0xFFFFFFFFFFFFFFFF) {
+                    uint8_t bytes[16];
+                    vst1q_u8(bytes, is_digit);
+                    int i;
+                    for (i = 0; i < 16; i++) {
+                        if (bytes[i] == 0) break;
+                    }
+                    digit_run_length += i;
+                    current_index += i;
+                    break;
+                }
+                
+                digit_run_length += 16;
+                current_index += 16;
+            }
+#else
+            while (current_index < parser->length && isdigit(parser->input[current_index])) {
+                digit_run_length++;
+                current_index++;
+            }
+#endif
+            
+            if (digit_run_length > 0) {
+                const size_t safe_int_digits = 18;
+                
+                size_t digits_to_process = digit_run_length;
+                if (!integer_overflow && digits_to_process > safe_int_digits) {
+                    digits_to_process = safe_int_digits;
+                }
+                
+                for (size_t i = 0; i < digits_to_process; i++) {
+                    uint8_t digit = parser->input[parser->index++] - '0';
+                    digit_count++;
+                    
+                    if (!integer_overflow) {
+                        int_value = int_value * 10 + digit;
+                    } else {
+                        double_value = double_value * 10.0 + (double)digit;
+                    }
+                }
+                
+                if (!integer_overflow && digit_run_length > digits_to_process) {
+                    integer_overflow = true;
+                    double_value = (double)int_value;
+                    is_double = true;
+                    
+                    for (size_t i = digits_to_process; i < digit_run_length; i++) {
+                        uint8_t digit = parser->input[parser->index++] - '0';
+                        digit_count++;
+                        double_value = double_value * 10.0 + (double)digit;
+                    }
                 }
             }
-             else {
-                 double_value = double_value * 10.0 + (double)digit;
-             }
+
+            while (json_has_more(parser) && isdigit(json_peek(parser))) {
+                uint8_t digit = json_next(parser) - '0';
+                digit_count++;
+                
+                if (!integer_overflow) {
+                    if (int_value > (INT64_MAX - digit) / 10) {
+                        integer_overflow = true;
+                        double_value = (double)int_value;
+                        is_double = true;
+                    }
+                }
+                
+                if (!integer_overflow) {
+                    int_value = int_value * 10 + digit;
+                } else {
+                    double_value = double_value * 10.0 + (double)digit;
+                }
+            }
+        } else {
+            while (json_has_more(parser) && isdigit(json_peek(parser))) {
+                uint8_t digit = json_next(parser) - '0';
+                digit_count++;
+                
+                if (!integer_overflow) {
+                    if (int_value > (INT64_MAX - digit) / 10) {
+                        integer_overflow = true;
+                        double_value = (double)int_value;
+                        is_double = true;
+                    }
+                    if (!integer_overflow) {
+                        int_value = int_value * 10 + digit;
+                    } else {
+                        double_value = double_value * 10.0 + (double)digit;
+                    }
+                }
+                else {
+                    double_value = double_value * 10.0 + (double)digit;
+                }
+            }
         }
     }
     
@@ -765,7 +891,6 @@ static json_error_t json_parse_number(json_parser_t* parser, json_value_t** out_
         double_value += fraction;
     }
 
-    // 4. Exponent Part
     if (json_has_more(parser) && (json_peek(parser) == 'e' || json_peek(parser) == 'E')) {
         is_double = true;
         json_next(parser);

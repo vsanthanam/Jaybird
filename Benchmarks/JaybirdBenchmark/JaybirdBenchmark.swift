@@ -27,10 +27,10 @@ import Benchmark
 import Foundation
 import Jaybird
 
-func loadBenchmark(_ name: String) -> Data {
-    let name = "benchmark-\(name)"
-    let url = Bundle.module.url(forResource: name, withExtension: "json")!
-    return try! Data(contentsOf: url)
+func load(benchmark name: String) -> (String, Data) {
+    let resource = "benchmark-\(name)"
+    let url = Bundle.module.url(forResource: resource, withExtension: "json")!
+    return (name, try! Data(contentsOf: url))
 }
 
 let files = [
@@ -40,21 +40,25 @@ let files = [
     "2kb-pretty",
     "50kb",
     "50kb-pretty",
+    "200kb",
+    "200kb-pretty",
+    "500kb",
+    "500kb-pretty",
+    "2mb",
+    "2mb-pretty",
     "5mb",
     "5mb-pretty",
     "50mb",
     "50mb-pretty",
     "strings",
-    "numeric"
+    "numeric",
+    "integers"
 ]
-.map { file in
-    (file, loadBenchmark(file))
-}
+.map(load)
 
 nonisolated(unsafe) let benchmarks = {
-    for file in files {
-        let (file, data) = file
-        Benchmark("Parse (\(file))") { benchmark in
+    for (name, data) in files {
+        Benchmark("Parse (\(name))") { benchmark in
             for _ in benchmark.scaledIterations {
                 _ = try Jaybird.JSON(data)
 //                _ = try JSONSerialization.jsonObject(with: data)

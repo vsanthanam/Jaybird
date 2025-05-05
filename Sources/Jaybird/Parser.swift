@@ -1,5 +1,5 @@
 // Jaybird
-// JSONParser.swift
+// Parser.swift
 //
 // MIT License
 //
@@ -27,7 +27,7 @@ import Foundation
 import Parser
 
 extension JSON {
-    
+
     public enum Parser {
 
         public static func parse(
@@ -109,7 +109,6 @@ extension JSON {
 
     }
 
-    
 }
 
 private struct ParseError: Error, CustomStringConvertible {
