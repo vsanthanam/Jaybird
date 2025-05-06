@@ -135,8 +135,6 @@ extension String: JSONCodable {
 
 extension Array: JSONEncodable where Element: JSONEncodable {
 
-    @inline(__always)
-    @inlinable
     public func encodeToJSON() -> JSON {
         .array(map { element in element.encodeToJSON() })
     }
@@ -153,8 +151,6 @@ extension Array: JSONDecodable where Element: JSONDecodable {
 
 extension Dictionary: JSONEncodable where Key == String, Value: JSONEncodable {
 
-    @inline(__always)
-    @inlinable
     public func encodeToJSON() -> JSON {
         .object(mapValues { value in value.encodeToJSON() })
     }
@@ -171,8 +167,6 @@ extension Dictionary: JSONDecodable where Key == String, Value: JSONDecodable {
 
 extension JSONEncodable where Self: RawRepresentable, RawValue: JSONEncodable {
 
-    @inline(__always)
-    @inlinable
     public func encodeToJSON() -> JSON {
         rawValue.encodeToJSON()
     }

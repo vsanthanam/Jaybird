@@ -77,6 +77,27 @@ extension JSON {
             self = .double(value)
         }
 
+        public static func == (lhs: Numeric, rhs: Numeric) -> Bool {
+            switch (lhs, rhs) {
+            case let (.int(lhs), .int(rhs)):
+                lhs == rhs
+            case let (.double(lhs), .double(rhs)):
+                lhs == rhs
+            case let (.int(lhs), .double(rhs)):
+                if rhs.truncatingRemainder(dividingBy: 1.0) == 0 {
+                    lhs == (Int(rhs))
+                } else {
+                    false
+                }
+            case let (.double(lhs), .int(rhs)):
+                if lhs.truncatingRemainder(dividingBy: 1.0) == 0 {
+                    (Int(lhs)) == rhs
+                } else {
+                    false
+                }
+            }
+        }
+
     }
 
 }

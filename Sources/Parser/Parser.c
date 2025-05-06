@@ -63,8 +63,9 @@ typedef struct json_memory_arena {
 
 static json_value_t* json_create_value_from_arena(json_memory_arena_t* arena);
 
+// Forward declarations
+static json_memory_block_t* json_arena_add_block(json_memory_arena_t* arena, size_t min_size);
 json_memory_arena_t* json_arena_init(size_t input_size);
-
 void json_arena_free(json_memory_arena_t* arena);
 
 json_memory_arena_t* json_arena_init(size_t input_size) {
@@ -729,67 +730,67 @@ static json_error_t json_parse_number(json_parser_t* parser, json_value_t** out_
             size_t digit_run_length = 0;
             size_t current_index = parser->index;
             
-#if defined(JAYBIRD_USE_SSE2)
-            // Constants for SSE2
-            const __m128i zero = _mm_setzero_si128();
-            const __m128i nine = _mm_set1_epi8('9');
-            const __m128i zero_char = _mm_set1_epi8('0');
-            
-            while (current_index + 16 <= parser->length) {
-                __m128i input = _mm_loadu_si128((const __m128i*)(parser->input + current_index));
+            #if defined(JAYBIRD_USE_SSE2)
+                // Constants for SSE2
+                const __m128i zero = _mm_setzero_si128();
+                const __m128i nine = _mm_set1_epi8('9');
+                const __m128i zero_char = _mm_set1_epi8('0');
                 
-                __m128i gt_or_eq_zero = _mm_cmpgt_epi8(input, _mm_sub_epi8(zero_char, _mm_set1_epi8(1)));
-                __m128i lt_or_eq_nine = _mm_cmplt_epi8(input, _mm_add_epi8(nine, _mm_set1_epi8(1)));
-                __m128i is_digit = _mm_and_si128(gt_or_eq_zero, lt_or_eq_nine);
-                
-                uint16_t mask = _mm_movemask_epi8(is_digit);
-                
-                if (mask != 0xFFFF) {
-                    unsigned int trailing_zeros = __builtin_ctz(~mask);
-                    digit_run_length += trailing_zeros;
-                    current_index += trailing_zeros;
-                    break;
-                }
-                
-                digit_run_length += 16;
-                current_index += 16;
-            }
-#elif defined(JAYBIRD_USE_NEON)
-            // Constants for NEON
-            const uint8x16_t zero_char = vdupq_n_u8('0');
-            const uint8x16_t nine = vdupq_n_u8('9');
-            
-            while (current_index + 16 <= parser->length) {
-                uint8x16_t input = vld1q_u8(parser->input + current_index);
-                
-                uint8x16_t gt_or_eq_zero = vcgeq_u8(input, zero_char);
-                uint8x16_t lt_or_eq_nine = vcleq_u8(input, nine);
-                uint8x16_t is_digit = vandq_u8(gt_or_eq_zero, lt_or_eq_nine);
-                
-                uint64_t high = vgetq_lane_u64(vreinterpretq_u64_u8(is_digit), 1);
-                uint64_t low = vgetq_lane_u64(vreinterpretq_u64_u8(is_digit), 0);
-                
-                if (high != 0xFFFFFFFFFFFFFFFF || low != 0xFFFFFFFFFFFFFFFF) {
-                    uint8_t bytes[16];
-                    vst1q_u8(bytes, is_digit);
-                    int i;
-                    for (i = 0; i < 16; i++) {
-                        if (bytes[i] == 0) break;
+                while (current_index + 16 <= parser->length) {
+                    __m128i input = _mm_loadu_si128((const __m128i*)(parser->input + current_index));
+                    
+                    __m128i gt_or_eq_zero = _mm_cmpgt_epi8(input, _mm_sub_epi8(zero_char, _mm_set1_epi8(1)));
+                    __m128i lt_or_eq_nine = _mm_cmplt_epi8(input, _mm_add_epi8(nine, _mm_set1_epi8(1)));
+                    __m128i is_digit = _mm_and_si128(gt_or_eq_zero, lt_or_eq_nine);
+                    
+                    uint16_t mask = _mm_movemask_epi8(is_digit);
+                    
+                    if (mask != 0xFFFF) {
+                        unsigned int trailing_zeros = __builtin_ctz(~mask);
+                        digit_run_length += trailing_zeros;
+                        current_index += trailing_zeros;
+                        break;
                     }
-                    digit_run_length += i;
-                    current_index += i;
-                    break;
+                    
+                    digit_run_length += 16;
+                    current_index += 16;
                 }
+            #elif defined(JAYBIRD_USE_NEON)
+                // Constants for NEON
+                const uint8x16_t zero_char = vdupq_n_u8('0');
+                const uint8x16_t nine = vdupq_n_u8('9');
                 
-                digit_run_length += 16;
-                current_index += 16;
-            }
-#else
-            while (current_index < parser->length && isdigit(parser->input[current_index])) {
-                digit_run_length++;
-                current_index++;
-            }
-#endif
+                while (current_index + 16 <= parser->length) {
+                    uint8x16_t input = vld1q_u8(parser->input + current_index);
+                    
+                    uint8x16_t gt_or_eq_zero = vcgeq_u8(input, zero_char);
+                    uint8x16_t lt_or_eq_nine = vcleq_u8(input, nine);
+                    uint8x16_t is_digit = vandq_u8(gt_or_eq_zero, lt_or_eq_nine);
+                    
+                    uint64_t high = vgetq_lane_u64(vreinterpretq_u64_u8(is_digit), 1);
+                    uint64_t low = vgetq_lane_u64(vreinterpretq_u64_u8(is_digit), 0);
+                    
+                    if (high != 0xFFFFFFFFFFFFFFFF || low != 0xFFFFFFFFFFFFFFFF) {
+                        uint8_t bytes[16];
+                        vst1q_u8(bytes, is_digit);
+                        int i;
+                        for (i = 0; i < 16; i++) {
+                            if (bytes[i] == 0) break;
+                        }
+                        digit_run_length += i;
+                        current_index += i;
+                        break;
+                    }
+                    
+                    digit_run_length += 16;
+                    current_index += 16;
+                }
+            #else
+                while (current_index < parser->length && isdigit(parser->input[current_index])) {
+                    digit_run_length++;
+                    current_index++;
+                }
+            #endif
             
             if (digit_run_length > 0) {
                 const size_t safe_int_digits = 18;

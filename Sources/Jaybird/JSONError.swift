@@ -49,4 +49,6 @@ public enum JSONError: Error {
 
     case invalidJSON
 
+    case fileExists
+
 }

@@ -26,6 +26,25 @@
 extension JSON {
 
     public enum Subscript: Equatable, Hashable, Sendable {
+
+        public init(
+            _ convertible: some JSONSubscriptConvertible
+        ) {
+            self = convertible.jsonSubscript
+        }
+
+        public init(
+            _ key: some StringProtocol
+        ) {
+            self = .key(String(key))
+        }
+
+        public init(
+            _ index: some BinaryInteger
+        ) {
+            self = .index(Int(index))
+        }
+
         case key(String)
         case index(Int)
     }

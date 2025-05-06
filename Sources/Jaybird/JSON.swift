@@ -42,18 +42,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     public init(
         _ data: Data
     ) throws {
-        self = try Parser.parse(data)
-    }
-
-    /// Create a `JSON` value by deserializing a Swift string
-    /// - Parameter string: The string to deserialize
-    public init(
-        deserializing string: String
-    ) throws {
-        guard let data = string.data(using: .utf8) else {
-            throw JSONError.invalidJSON
-        }
-        try self.init(data)
+        self = try Deserializer.object(from: data)
     }
 
     /// Create a `JSON` value by deserializing an array of bytes that represent a UTF-8 encoded JSON string
@@ -62,6 +51,14 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         _ bytes: [UInt8]
     ) throws {
         try self.init(Data(bytes))
+    }
+
+    /// Create a `JSON` value by deserializing a Swift string
+    /// - Parameter string: The string to deserialize
+    public init(
+        deserializing string: String
+    ) throws {
+        self = try Deserializer.object(from: string)
     }
 
     // MARK: - API
@@ -82,10 +79,10 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     case string(String)
 
     /// A null JSON value
-    public static let null: JSON = .literal(.null)
+    public static let null: JSON = nil
 
     /// A zero JSON value
-    public static let zero = JSON(0)
+    public static let zero: JSON = 0
 
     /// The JSON value as a literal
     public var literalValue: Literal {
@@ -177,18 +174,36 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     /// - Parameter key: A string key to use for lookup
     /// - Returns: The JSON value at the specified key
     public func value(
-        forKey key: String
+        forKey key: some StringProtocol
     ) throws -> JSON {
-        try value(forSubscript: .key(key))
+        try value(forSubscript: .init(key))
+    }
+
+    /// Retrieve a value from the JSON object using a specified key
+    /// - Parameter key: A string key to use for lookup
+    /// - Returns: The JSON value at the specified key
+    public func value<Key>(
+        forKey key: Key
+    ) throws -> JSON where Key: RawRepresentable, Key.RawValue: StringProtocol {
+        try value(forKey: key.rawValue)
     }
 
     /// Retrieve a value from the JSON object using a specified index
     /// - Parameter index: An integer index to use for lookup
     /// - Returns: The JSON value at the specified index
     public func value(
-        atIndex index: Int
+        atIndex index: some BinaryInteger
     ) throws -> JSON {
-        try value(forSubscript: .index(index))
+        try value(forSubscript: .init(index))
+    }
+
+    /// Retrieve a value from the JSON object using a specified index
+    /// - Parameter index: An integer index to use for lookup
+    /// - Returns: The JSON value at the specified index
+    public func value<Index>(
+        atIndex index: Index
+    ) throws -> JSON where Index: RawRepresentable, Index.RawValue: BinaryInteger {
+        try value(atIndex: index.rawValue)
     }
 
     /// Retrieve a value from the JSON object using a specified subscript
@@ -223,7 +238,8 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     public func value(
         forSubscript subscript: some JSONSubscriptConvertible
     ) throws -> JSON {
-        try value(forSubscript: `subscript`.jsonSubscript)
+        let `subscript` = Subscript(`subscript`)
+        return try value(forSubscript: `subscript`)
     }
 
     /// Set a value in the JSON object using a specified key
@@ -232,9 +248,20 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ///   - key: A string key to use for lookup
     public mutating func setValue(
         _ value: JSON,
-        forKey key: String
+        forKey key: some StringProtocol
     ) throws {
-        try setValue(value, forSubscript: .key(key))
+        try setValue(value, forSubscript: .init(key))
+    }
+
+    /// Set a value in the JSON object using a specified key
+    /// - Parameters:
+    ///   - value: The JSON value to set
+    ///   - key: A string key to use for lookup
+    public mutating func setValue<Key>(
+        _ value: JSON,
+        forKey key: Key
+    ) throws where Key: RawRepresentable, Key.RawValue: StringProtocol {
+        try setValue(value, forKey: key.rawValue)
     }
 
     /// Set a value in the JSON object using a specified index
@@ -243,9 +270,20 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ///   - index: An integer index to use for lookup
     public mutating func setValue(
         _ value: JSON,
-        atIndex index: Int
+        atIndex index: some BinaryInteger
     ) throws {
-        try setValue(value, forSubscript: .index(index))
+        try setValue(value, forSubscript: .init(index))
+    }
+
+    /// Set a value in the JSON object using a specified index
+    /// - Parameters:
+    ///   - value: The JSON value to set
+    ///   - index: An integer index to use for lookup
+    public mutating func setValue<Index>(
+        _ value: JSON,
+        atIndex index: Index
+    ) throws where Index: RawRepresentable, Index.RawValue: BinaryInteger {
+        try setValue(value, atIndex: index.rawValue)
     }
 
     /// Set a value in the JSON object using a specified subscript
@@ -283,29 +321,48 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         _ value: JSON,
         forSubscript subscript: some JSONSubscriptConvertible
     ) throws {
-        try setValue(value, forSubscript: `subscript`.jsonSubscript)
+        let `subscript` = Subscript(`subscript`)
+        try setValue(
+            value,
+            forSubscript: `subscript`
+        )
     }
 
-    public subscript(
-        _ key: String
-    ) -> JSON {
-        get {
-            try! value(forKey: key)
-        }
-        set {
-            try! setValue(newValue, forKey: key)
-        }
+    /// Serialize the JSON object to a byte buffer
+    /// - Parameter options: Serialization options
+    /// - Returns: The serialized byte buffe
+    public func serialize() throws -> Data {
+        try Serializer.data(from: self)
     }
 
-    public subscript(
-        _ index: Int
-    ) -> JSON {
-        get {
-            try! value(atIndex: index)
+    /// Produce a string representation of the JSON object
+    /// - Parameter options: Serialization options
+    /// - Returns: The serialized string
+    public func stringify() throws -> String {
+        try Serializer.string(from: self)
+    }
+
+    /// Write the JSON model to disk
+    /// - Parameters:
+    ///   - fileURL: The file URL write to
+    ///   - shouldOverwrite: Whether or not existing content should be overwritten
+    public func write(
+        fileURL: URL,
+        shouldOverwrite: Bool = false
+    ) async throws {
+        if FileManager.default.fileExists(atPath: fileURL.path()) {
+            if shouldOverwrite {
+                try FileManager.default.removeItem(at: fileURL)
+                try Task.checkCancellation()
+            } else {
+                throw JSONError.fileExists
+            }
         }
-        set {
-            try! setValue(newValue, atIndex: index)
-        }
+
+        let data = try serialize()
+        try Task.checkCancellation()
+        try data.write(to: fileURL, options: .withoutOverwriting)
+        try Task.checkCancellation()
     }
 
     public subscript(
@@ -323,10 +380,10 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         _ subscript: some JSONSubscriptConvertible
     ) -> JSON {
         get {
-            self[`subscript`.jsonSubscript]
+            try! value(forSubscript: `subscript`)
         }
         set {
-            self[`subscript`.jsonSubscript] = newValue
+            try! setValue(newValue, forSubscript: `subscript`)
         }
     }
 
@@ -401,7 +458,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     public init(
         nilLiteral: Void
     ) {
-        self = .null
+        self = .literal(.null)
     }
 
 }
