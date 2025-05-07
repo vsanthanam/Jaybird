@@ -48,7 +48,6 @@
 #define SMALL_STRING_SIZE 16
 #define STRING_POOL_INITIAL_SIZE 64
 
-// String pool for interning strings (deduplication)
 typedef struct {
     const char** strings;
     size_t* lengths;
@@ -56,7 +55,6 @@ typedef struct {
     size_t capacity;
 } string_pool_t;
 
-// Error messages for JSON parsing
 static const char* error_messages[] = {
     "No error",
     "Unexpected end of input",
@@ -93,7 +91,7 @@ typedef struct json_memory_arena {
     json_memory_block_t* current;
     size_t total_size;
     size_t block_size;
-    string_pool_t string_pool;  // String pool for deduplication
+    string_pool_t string_pool;
 } json_memory_arena_t;
 
 typedef struct json_string {
@@ -139,19 +137,11 @@ typedef struct {
     json_memory_arena_t* arena;
 } json_parser_t;
 
-// Forward declarations
+
 static json_memory_block_t* json_arena_add_block(json_memory_arena_t* arena, size_t min_size);
 static void* json_arena_alloc(json_memory_arena_t* arena, size_t size);
-static json_value_t* json_create_value_from_arena(json_memory_arena_t* arena);
-static const char* json_string_get(const json_string_t* str);
-static bool json_scan_simple_string(json_parser_t* parser, const char** str_start, size_t* str_len);
-
-// Forward declarations for new functions
 static bool try_parse_simple_string(json_parser_t* parser, const char** out_str, size_t* out_len);
-static const char* json_string_pool_get_or_add(string_pool_t* pool, const char* str, size_t len, json_memory_arena_t* arena);
-static void json_string_pool_init(string_pool_t* pool, json_memory_arena_t* arena);
 
-// Initialize the string pool
 static void json_string_pool_init(string_pool_t* pool, json_memory_arena_t* arena) {
     pool->capacity = STRING_POOL_INITIAL_SIZE;
     pool->count = 0;
@@ -159,26 +149,21 @@ static void json_string_pool_init(string_pool_t* pool, json_memory_arena_t* aren
     pool->lengths = (size_t*)json_arena_alloc(arena, pool->capacity * sizeof(size_t));
 }
 
-// Find a string in the pool or add it if not found
 static const char* json_string_pool_get_or_add(string_pool_t* pool, const char* str, size_t len, json_memory_arena_t* arena) {
-    // First check if it's already in the pool
+
     for (size_t i = 0; i < pool->count; i++) {
         if (pool->lengths[i] == len && memcmp(pool->strings[i], str, len) == 0) {
-            // Found it - return the existing one
             return pool->strings[i];
         }
     }
     
-    // Not found, need to add it
     if (pool->count >= pool->capacity) {
-        // Grow the pool
         size_t new_capacity = pool->capacity * 2;
         const char** new_strings = (const char**)json_arena_alloc(arena, new_capacity * sizeof(const char*));
         size_t* new_lengths = (size_t*)json_arena_alloc(arena, new_capacity * sizeof(size_t));
         
         if (!new_strings || !new_lengths) return NULL;
         
-        // Copy existing entries
         memcpy(new_strings, pool->strings, pool->count * sizeof(const char*));
         memcpy(new_lengths, pool->lengths, pool->count * sizeof(size_t));
         
@@ -187,7 +172,6 @@ static const char* json_string_pool_get_or_add(string_pool_t* pool, const char* 
         pool->capacity = new_capacity;
     }
     
-    // Add to pool - first allocate memory for the string
     char* new_str = (char*)json_arena_alloc(arena, len + 1);
     if (!new_str) return NULL;
     
@@ -348,7 +332,6 @@ static bool json_scan_simple_string(json_parser_t* parser, const char** str_star
         uint8_t c = parser->input[parser->index];
         
         if (c == '"') {
-            // End of string found
             *str_start = (const char*)(parser->input + start_index);
             *str_len = length;
             parser->index++;
@@ -486,7 +469,6 @@ static json_error_t json_array_push(json_value_t* array, json_value_t* element, 
         memcpy(new_elements, array->data.array.elements, 
                array->data.array.count * sizeof(struct json_value*));
         
-        // Update array with new elements
         array->data.array.elements = new_elements;
         array->data.array.capacity = new_capacity;
     }
@@ -1139,7 +1121,6 @@ static json_error_t json_parse_object(json_parser_t* parser, json_value_t** out_
                                                             key, key_len, parser->arena);
             if (!interned_key) return JSON_OUT_OF_MEMORY;
             
-            // Use the interned key
             if (object->data.object.count >= object->data.object.capacity) {
                 size_t new_capacity = object->data.object.capacity * 2;
                 if (new_capacity == 0) new_capacity = 8;
@@ -1162,7 +1143,6 @@ static json_error_t json_parse_object(json_parser_t* parser, json_value_t** out_
             str->length = key_len;
             
             if (key_len < SMALL_STRING_SIZE) {
-                // For small strings, still copy into the buffer
                 str->is_small = true;
                 memcpy(str->data.buf, interned_key, key_len);
                 str->data.buf[key_len] = '\0';
@@ -1171,13 +1151,12 @@ static json_error_t json_parse_object(json_parser_t* parser, json_value_t** out_
                 str->data.ptr = (char*)interned_key;
             }
         } else {
-            json_next(parser); // Skip the opening quote
+            json_next(parser);
             err = json_parse_string_into_temp_buffer(parser);
             if (err != JSON_NO_ERROR) {
                 return err;
             }
             
-            // Intern the parsed key
             const char* interned_key = json_string_pool_get_or_add(&parser->arena->string_pool, 
                                                             parser->temp_buffer, parser->temp_size, 
                                                             parser->arena);
@@ -1201,7 +1180,6 @@ static json_error_t json_parse_object(json_parser_t* parser, json_value_t** out_
                 object->data.object.capacity = new_capacity;
             }
 
-            // Initialize object key with interned string
             json_string_t* str = &object->data.object.keys[object->data.object.count];
             str->length = parser->temp_size;
             
@@ -1453,7 +1431,6 @@ static bool try_parse_simple_string(json_parser_t* parser, const char** out_str,
     const uint8_t* input = parser->input;
     size_t length = parser->length;
     
-    // Skip the opening quote
     if (input[start_idx] != '"') return false;
     start_idx++;
     

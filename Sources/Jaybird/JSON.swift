@@ -61,12 +61,12 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         self = try Deserializer.object(from: string)
     }
 
-    /// Create a `JSON` value declaratively
+    /// Create a `JSON` object declaratively
     /// - Parameter content: The fields in the object
     public init(
-        @Builder content: () -> JSON
+        @Builder fields: () -> JSON
     ) {
-        self = content()
+        self = fields()
     }
 
     // MARK: - API

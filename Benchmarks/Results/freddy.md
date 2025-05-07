@@ -1,4 +1,4 @@
-## Jaybird vs. Freddy
+## Jaybird vs. Freddygi
 
 ### Parse (1mb) metrics
 
