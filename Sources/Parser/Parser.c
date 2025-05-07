@@ -110,8 +110,11 @@ static json_memory_block_t* json_arena_add_block(json_memory_arena_t* arena, siz
     
     if (!arena->head) {
         arena->head = block;
-    } else {
+    } else if (arena->current) {
         arena->current->next = block;
+    } else {
+        // If head is not NULL but current is NULL, update head's next
+        arena->head->next = block;
     }
     
     arena->current = block;
@@ -728,7 +731,6 @@ static json_error_t json_parse_number(json_parser_t* parser, json_value_t** out_
         
         if (remaining_bytes >= 16) {
             size_t digit_run_length = 0;
-            size_t current_index = parser->index;
             
             #if defined(JAYBIRD_USE_SSE2)
                 // Constants for SSE2
@@ -736,8 +738,8 @@ static json_error_t json_parse_number(json_parser_t* parser, json_value_t** out_
                 const __m128i nine = _mm_set1_epi8('9');
                 const __m128i zero_char = _mm_set1_epi8('0');
                 
-                while (current_index + 16 <= parser->length) {
-                    __m128i input = _mm_loadu_si128((const __m128i*)(parser->input + current_index));
+                while (parser->index + digit_run_length + 16 <= parser->length) {
+                    __m128i input = _mm_loadu_si128((const __m128i*)(parser->input + parser->index + digit_run_length));
                     
                     __m128i gt_or_eq_zero = _mm_cmpgt_epi8(input, _mm_sub_epi8(zero_char, _mm_set1_epi8(1)));
                     __m128i lt_or_eq_nine = _mm_cmplt_epi8(input, _mm_add_epi8(nine, _mm_set1_epi8(1)));
@@ -748,20 +750,18 @@ static json_error_t json_parse_number(json_parser_t* parser, json_value_t** out_
                     if (mask != 0xFFFF) {
                         unsigned int trailing_zeros = __builtin_ctz(~mask);
                         digit_run_length += trailing_zeros;
-                        current_index += trailing_zeros;
                         break;
                     }
                     
                     digit_run_length += 16;
-                    current_index += 16;
                 }
             #elif defined(JAYBIRD_USE_NEON)
                 // Constants for NEON
                 const uint8x16_t zero_char = vdupq_n_u8('0');
                 const uint8x16_t nine = vdupq_n_u8('9');
                 
-                while (current_index + 16 <= parser->length) {
-                    uint8x16_t input = vld1q_u8(parser->input + current_index);
+                while (parser->index + digit_run_length + 16 <= parser->length) {
+                    uint8x16_t input = vld1q_u8(parser->input + parser->index + digit_run_length);
                     
                     uint8x16_t gt_or_eq_zero = vcgeq_u8(input, zero_char);
                     uint8x16_t lt_or_eq_nine = vcleq_u8(input, nine);
@@ -778,17 +778,16 @@ static json_error_t json_parse_number(json_parser_t* parser, json_value_t** out_
                             if (bytes[i] == 0) break;
                         }
                         digit_run_length += i;
-                        current_index += i;
                         break;
                     }
                     
                     digit_run_length += 16;
-                    current_index += 16;
                 }
             #else
-                while (current_index < parser->length && isdigit(parser->input[current_index])) {
+                size_t i = 0;
+                while (parser->index + digit_run_length < parser->length && 
+                       isdigit(parser->input[parser->index + digit_run_length])) {
                     digit_run_length++;
-                    current_index++;
                 }
             #endif
             
