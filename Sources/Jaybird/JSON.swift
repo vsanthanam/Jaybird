@@ -60,7 +60,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     ) throws {
         self = try Deserializer.object(from: string)
     }
-    
+
     /// Create a `JSON` value declaratively
     /// - Parameter content: The fields in the object
     public init(

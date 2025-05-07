@@ -46,6 +46,40 @@
 #define JSON_STANDARD_JSON_THRESHOLD   (1024 * 1024)
 
 #define SMALL_STRING_SIZE 16
+#define STRING_POOL_INITIAL_SIZE 64
+
+// String pool for interning strings (deduplication)
+typedef struct {
+    const char** strings;
+    size_t* lengths;
+    size_t count;
+    size_t capacity;
+} string_pool_t;
+
+// Error messages for JSON parsing
+static const char* error_messages[] = {
+    "No error",
+    "Unexpected end of input",
+    "Invalid JSON",
+    "Invalid character",
+    "Expected ':' after key in object",
+    "Expected ',' or '}' in object",
+    "Expected ',' or ']' in array",
+    "Invalid literal",
+    "Invalid number",
+    "Invalid string",
+    "Missing object key",
+    "Invalid Unicode sequence",
+    "Invalid escape sequence",
+    "Out of memory"
+};
+
+const char* json_get_error_message(json_error_t error) {
+    if (error < 0 || error >= sizeof(error_messages) / sizeof(error_messages[0])) {
+        return "Unknown error";
+    }
+    return error_messages[error];
+}
 
 typedef struct json_memory_block {
     char* memory;
@@ -59,98 +93,8 @@ typedef struct json_memory_arena {
     json_memory_block_t* current;
     size_t total_size;
     size_t block_size;
+    string_pool_t string_pool;  // String pool for deduplication
 } json_memory_arena_t;
-
-static json_value_t* json_create_value_from_arena(json_memory_arena_t* arena);
-
-// Forward declarations
-static json_memory_block_t* json_arena_add_block(json_memory_arena_t* arena, size_t min_size);
-json_memory_arena_t* json_arena_init(size_t input_size);
-void json_arena_free(json_memory_arena_t* arena);
-
-json_memory_arena_t* json_arena_init(size_t input_size) {
-    json_memory_arena_t* arena = (json_memory_arena_t*)malloc(sizeof(json_memory_arena_t));
-    if (!arena) return NULL;
-
-    arena->head = NULL;
-    arena->current = NULL;
-    arena->total_size = 0;
-
-    if (input_size <= JSON_SMALL_JSON_THRESHOLD) {
-        arena->block_size = JSON_ARENA_SMALL_BLOCK_SIZE;
-    } else if (input_size <= JSON_STANDARD_JSON_THRESHOLD) {
-        arena->block_size = JSON_ARENA_STANDARD_BLOCK_SIZE;
-    } else {
-        arena->block_size = JSON_ARENA_LARGE_BLOCK_SIZE;
-    }
-
-    return arena;
-}
-
-static json_memory_block_t* json_arena_add_block(json_memory_arena_t* arena, size_t min_size) {
-    
-    size_t block_size = arena->block_size;
-    
-    if (min_size > block_size) {
-        block_size = min_size;
-    }
-    
-    json_memory_block_t* block = (json_memory_block_t*)malloc(sizeof(json_memory_block_t));
-    if (!block) return NULL;
-    
-    block->memory = (char*)malloc(block_size);
-    if (!block->memory) {
-        free(block);
-        return NULL;
-    }
-    
-    block->size = block_size;
-    block->used = 0;
-    block->next = NULL;
-    
-    if (!arena->head) {
-        arena->head = block;
-    } else if (arena->current) {
-        arena->current->next = block;
-    } else {
-        // If head is not NULL but current is NULL, update head's next
-        arena->head->next = block;
-    }
-    
-    arena->current = block;
-    arena->total_size += block_size;
-    
-    return block;
-}
-
-void* json_arena_alloc(json_memory_arena_t* arena, size_t size) {
-    size = (size + 7) & ~7;
-    
-    if (!arena->current || (arena->current->size - arena->current->used) < size) {
-        if (!json_arena_add_block(arena, size)) {
-            return NULL;
-        }
-    }
-    
-    void* ptr = arena->current->memory + arena->current->used;
-    arena->current->used += size;
-    
-    return ptr;
-}
-
-void json_arena_free(json_memory_arena_t* arena) {
-    if (!arena) return;
-    
-    json_memory_block_t* block = arena->head;
-    while (block) {
-        json_memory_block_t* next = block->next;
-        free(block->memory);
-        free(block);
-        block = next;
-    }
-    
-    free(arena);
-}
 
 typedef struct json_string {
     union {
@@ -160,33 +104,6 @@ typedef struct json_string {
     size_t length;
     bool is_small;
 } json_string_t;
-
-static void json_string_init(json_string_t* str, const char* text, size_t len, json_memory_arena_t* arena) {
-    if (!str) return;
-    
-    str->length = len;
-    
-    if (len < SMALL_STRING_SIZE) {
-        str->is_small = true;
-        if (text && len > 0) {
-            memcpy(str->data.buf, text, len);
-        }
-        str->data.buf[len] = '\0';
-    } else {
-        str->is_small = false;
-        
-        str->data.ptr = (char*)json_arena_alloc(arena, len + 1);
-        if (str->data.ptr && text && len > 0) {
-            memcpy(str->data.ptr, text, len);
-            str->data.ptr[len] = '\0';
-        }
-    }
-}
-
-static const char* json_string_get(const json_string_t* str) {
-    if (!str) return NULL;
-    return str->is_small ? str->data.buf : str->data.ptr;
-}
 
 typedef json_string_t json_key_t;
 
@@ -222,28 +139,231 @@ typedef struct {
     json_memory_arena_t* arena;
 } json_parser_t;
 
-static const char* error_messages[] = {
-    "No error",
-    "Unexpected end of input",
-    "Invalid JSON",
-    "Invalid character",
-    "Expected ':' after key in object",
-    "Expected ',' or '}' in object",
-    "Expected ',' or ']' in array",
-    "Invalid literal",
-    "Invalid number",
-    "Invalid string",
-    "Missing object key",
-    "Invalid Unicode sequence",
-    "Invalid escape sequence",
-    "Out of memory"
-};
+// Forward declarations
+static json_memory_block_t* json_arena_add_block(json_memory_arena_t* arena, size_t min_size);
+static void* json_arena_alloc(json_memory_arena_t* arena, size_t size);
+static json_value_t* json_create_value_from_arena(json_memory_arena_t* arena);
+static const char* json_string_get(const json_string_t* str);
+static bool json_scan_simple_string(json_parser_t* parser, const char** str_start, size_t* str_len);
 
-const char* json_get_error_message(json_error_t error) {
-    if (error < 0 || error >= sizeof(error_messages) / sizeof(error_messages[0])) {
-        return "Unknown error";
+// Forward declarations for new functions
+static bool try_parse_simple_string(json_parser_t* parser, const char** out_str, size_t* out_len);
+static const char* json_string_pool_get_or_add(string_pool_t* pool, const char* str, size_t len, json_memory_arena_t* arena);
+static void json_string_pool_init(string_pool_t* pool, json_memory_arena_t* arena);
+
+// Initialize the string pool
+static void json_string_pool_init(string_pool_t* pool, json_memory_arena_t* arena) {
+    pool->capacity = STRING_POOL_INITIAL_SIZE;
+    pool->count = 0;
+    pool->strings = (const char**)json_arena_alloc(arena, pool->capacity * sizeof(const char*));
+    pool->lengths = (size_t*)json_arena_alloc(arena, pool->capacity * sizeof(size_t));
+}
+
+// Find a string in the pool or add it if not found
+static const char* json_string_pool_get_or_add(string_pool_t* pool, const char* str, size_t len, json_memory_arena_t* arena) {
+    // First check if it's already in the pool
+    for (size_t i = 0; i < pool->count; i++) {
+        if (pool->lengths[i] == len && memcmp(pool->strings[i], str, len) == 0) {
+            // Found it - return the existing one
+            return pool->strings[i];
+        }
     }
-    return error_messages[error];
+    
+    // Not found, need to add it
+    if (pool->count >= pool->capacity) {
+        // Grow the pool
+        size_t new_capacity = pool->capacity * 2;
+        const char** new_strings = (const char**)json_arena_alloc(arena, new_capacity * sizeof(const char*));
+        size_t* new_lengths = (size_t*)json_arena_alloc(arena, new_capacity * sizeof(size_t));
+        
+        if (!new_strings || !new_lengths) return NULL;
+        
+        // Copy existing entries
+        memcpy(new_strings, pool->strings, pool->count * sizeof(const char*));
+        memcpy(new_lengths, pool->lengths, pool->count * sizeof(size_t));
+        
+        pool->strings = new_strings;
+        pool->lengths = new_lengths;
+        pool->capacity = new_capacity;
+    }
+    
+    // Add to pool - first allocate memory for the string
+    char* new_str = (char*)json_arena_alloc(arena, len + 1);
+    if (!new_str) return NULL;
+    
+    memcpy(new_str, str, len);
+    new_str[len] = '\0';
+    
+    pool->strings[pool->count] = new_str;
+    pool->lengths[pool->count] = len;
+    pool->count++;
+    
+    return new_str;
+}
+
+json_memory_arena_t* json_arena_init(size_t input_size) {
+    json_memory_arena_t* arena = (json_memory_arena_t*)malloc(sizeof(json_memory_arena_t));
+    if (!arena) return NULL;
+
+    arena->head = NULL;
+    arena->current = NULL;
+    arena->total_size = 0;
+
+    if (input_size <= JSON_SMALL_JSON_THRESHOLD) {
+        arena->block_size = JSON_ARENA_SMALL_BLOCK_SIZE;
+    } else if (input_size <= JSON_STANDARD_JSON_THRESHOLD) {
+        arena->block_size = JSON_ARENA_STANDARD_BLOCK_SIZE;
+    } else {
+        arena->block_size = JSON_ARENA_LARGE_BLOCK_SIZE;
+    }
+    
+    arena->string_pool.capacity = 0;
+    arena->string_pool.count = 0;
+    arena->string_pool.strings = NULL;
+    arena->string_pool.lengths = NULL;
+
+    if (!json_arena_add_block(arena, 0)) {
+        free(arena);
+        return NULL;
+    }
+    
+    json_string_pool_init(&arena->string_pool, arena);
+
+    return arena;
+}
+
+static json_memory_block_t* json_arena_add_block(json_memory_arena_t* arena, size_t min_size) {
+    
+    size_t block_size = arena->block_size;
+    
+    if (min_size > block_size) {
+        block_size = min_size;
+    }
+    
+    json_memory_block_t* block = (json_memory_block_t*)malloc(sizeof(json_memory_block_t));
+    if (!block) return NULL;
+    
+    block->memory = (char*)malloc(block_size);
+    if (!block->memory) {
+        free(block);
+        return NULL;
+    }
+    
+    block->size = block_size;
+    block->used = 0;
+    block->next = NULL;
+    
+    if (!arena->head) {
+        arena->head = block;
+    } else if (arena->current) {
+        arena->current->next = block;
+    } else {
+        arena->head->next = block;
+    }
+    
+    arena->current = block;
+    arena->total_size += block_size;
+    
+    return block;
+}
+
+static void* json_arena_alloc(json_memory_arena_t* arena, size_t size) {
+    size = (size + 7) & ~7;
+    
+    if (!arena->current || (arena->current->size - arena->current->used) < size) {
+        if (!json_arena_add_block(arena, size)) {
+            return NULL;
+        }
+    }
+    
+    void* ptr = arena->current->memory + arena->current->used;
+    arena->current->used += size;
+    
+    return ptr;
+}
+
+void json_arena_free(json_memory_arena_t* arena) {
+    if (!arena) return;
+    
+    json_memory_block_t* block = arena->head;
+    while (block) {
+        json_memory_block_t* next = block->next;
+        free(block->memory);
+        free(block);
+        block = next;
+    }
+    
+    free(arena);
+}
+
+static void json_string_init(json_string_t* str, const char* text, size_t len, json_memory_arena_t* arena) {
+    if (!str) return;
+    
+    str->length = len;
+    
+    if (len < SMALL_STRING_SIZE) {
+        str->is_small = true;
+        if (text && len > 0) {
+            memcpy(str->data.buf, text, len);
+        }
+        str->data.buf[len] = '\0';
+    } else {
+        str->is_small = false;
+        
+        str->data.ptr = (char*)json_arena_alloc(arena, len + 1);
+        if (str->data.ptr && text && len > 0) {
+            memcpy(str->data.ptr, text, len);
+            str->data.ptr[len] = '\0';
+        }
+    }
+}
+
+static const char* json_string_get(const json_string_t* str) {
+    if (!str) return NULL;
+    return str->is_small ? str->data.buf : str->data.ptr;
+}
+
+static void json_string_init_interned(json_string_t* str, const char* text, size_t len) {
+    if (!str) return;
+    
+    str->length = len;
+    
+    if (len < SMALL_STRING_SIZE) {
+        str->is_small = true;
+        if (text && len > 0) {
+            memcpy(str->data.buf, text, len);
+        }
+        str->data.buf[len] = '\0';
+    } else {
+        str->is_small = false;
+        str->data.ptr = (char*)text;
+    }
+}
+
+static bool json_scan_simple_string(json_parser_t* parser, const char** str_start, size_t* str_len) {
+    size_t start_index = parser->index;
+    size_t length = 0;
+    
+    while (parser->index < parser->length) {
+        uint8_t c = parser->input[parser->index];
+        
+        if (c == '"') {
+            // End of string found
+            *str_start = (const char*)(parser->input + start_index);
+            *str_len = length;
+            parser->index++;
+            return true;
+        } else if (c == '\\' || c < 0x20) {
+            parser->index = start_index;
+            return false;
+        } else {
+            parser->index++;
+            length++;
+        }
+    }
+    
+    parser->index = start_index;
+    return false;
 }
 
 static json_value_t* json_create_value_from_arena(json_memory_arena_t* arena) {
@@ -316,7 +436,7 @@ static json_value_t* json_create_array(json_memory_arena_t* arena) {
     
     value->type = JSON_ARRAY;
     value->data.array.count = 0;
-    value->data.array.capacity = 8;  // Initial capacity
+    value->data.array.capacity = 8;
     
     value->data.array.elements = (struct json_value**)json_arena_alloc(arena, 
                                     value->data.array.capacity * sizeof(struct json_value*));
@@ -382,7 +502,7 @@ static void json_parser_init(json_parser_t* parser, const uint8_t* input, size_t
     parser->temp_buffer = NULL;
     parser->temp_size = 0;
     parser->temp_capacity = 0;
-    parser->arena = json_arena_init(length);  // Initialize the arena
+    parser->arena = json_arena_init(length);
 }
 
 static void json_parser_cleanup(json_parser_t* parser) {
@@ -444,7 +564,6 @@ int64_t json_get_int(const json_value_t* value) {
     if (value->type == JSON_NUMBER_INT) {
         return value->data.integer;
     } else if (value->type == JSON_NUMBER_DOUBLE) {
-        // Potential loss of precision
         return (int64_t)value->data.number;
     }
     
@@ -1012,34 +1131,91 @@ static json_error_t json_parse_object(json_parser_t* parser, json_value_t** out_
         if (!json_has_more(parser) || json_peek(parser) != '"') {
              return JSON_MISSING_OBJECT_KEY;
         }
-        json_next(parser);
-        err = json_parse_string_into_temp_buffer(parser);
-        if (err != JSON_NO_ERROR) {
-            return err;
-        }
- 
-        char* key_ptr = parser->temp_buffer;
-        size_t key_len = parser->temp_size;
+        
+        const char* key;
+        size_t key_len;
+        if (try_parse_simple_string(parser, &key, &key_len)) {
+            const char* interned_key = json_string_pool_get_or_add(&parser->arena->string_pool, 
+                                                            key, key_len, parser->arena);
+            if (!interned_key) return JSON_OUT_OF_MEMORY;
+            
+            // Use the interned key
+            if (object->data.object.count >= object->data.object.capacity) {
+                size_t new_capacity = object->data.object.capacity * 2;
+                if (new_capacity == 0) new_capacity = 8;
 
-        if (object->data.object.count >= object->data.object.capacity) {
-            size_t new_capacity = object->data.object.capacity * 2;
-            if (new_capacity == 0) new_capacity = 8;
+                json_key_t* new_keys = (json_key_t*)json_arena_alloc(parser->arena, new_capacity * sizeof(json_key_t));
+                struct json_value** new_values = (struct json_value**)json_arena_alloc(parser->arena, new_capacity * sizeof(struct json_value*));
 
-            json_key_t* new_keys = (json_key_t*)json_arena_alloc(parser->arena, new_capacity * sizeof(json_key_t));
-            struct json_value** new_values = (struct json_value**)json_arena_alloc(parser->arena, new_capacity * sizeof(struct json_value*));
+                if (!new_keys || !new_values) return JSON_OUT_OF_MEMORY;
 
-            if (!new_keys || !new_values) return JSON_OUT_OF_MEMORY;
-
-            if (object->data.object.count > 0) {
-                 memcpy(new_keys, object->data.object.keys, object->data.object.count * sizeof(json_key_t));
-                 memcpy(new_values, object->data.object.values, object->data.object.count * sizeof(struct json_value*));
+                if (object->data.object.count > 0) {
+                     memcpy(new_keys, object->data.object.keys, object->data.object.count * sizeof(json_key_t));
+                     memcpy(new_values, object->data.object.values, object->data.object.count * sizeof(struct json_value*));
+                }
+                object->data.object.keys = new_keys;
+                object->data.object.values = new_values;
+                object->data.object.capacity = new_capacity;
             }
-            object->data.object.keys = new_keys;
-            object->data.object.values = new_values;
-            object->data.object.capacity = new_capacity;
-        }
 
-        json_store_key(object, object->data.object.count, key_ptr, key_len, parser->arena);
+            json_string_t* str = &object->data.object.keys[object->data.object.count];
+            str->length = key_len;
+            
+            if (key_len < SMALL_STRING_SIZE) {
+                // For small strings, still copy into the buffer
+                str->is_small = true;
+                memcpy(str->data.buf, interned_key, key_len);
+                str->data.buf[key_len] = '\0';
+            } else {
+                str->is_small = false;
+                str->data.ptr = (char*)interned_key;
+            }
+        } else {
+            json_next(parser); // Skip the opening quote
+            err = json_parse_string_into_temp_buffer(parser);
+            if (err != JSON_NO_ERROR) {
+                return err;
+            }
+            
+            // Intern the parsed key
+            const char* interned_key = json_string_pool_get_or_add(&parser->arena->string_pool, 
+                                                            parser->temp_buffer, parser->temp_size, 
+                                                            parser->arena);
+            if (!interned_key) return JSON_OUT_OF_MEMORY;
+
+            if (object->data.object.count >= object->data.object.capacity) {
+                size_t new_capacity = object->data.object.capacity * 2;
+                if (new_capacity == 0) new_capacity = 8;
+
+                json_key_t* new_keys = (json_key_t*)json_arena_alloc(parser->arena, new_capacity * sizeof(json_key_t));
+                struct json_value** new_values = (struct json_value**)json_arena_alloc(parser->arena, new_capacity * sizeof(struct json_value*));
+
+                if (!new_keys || !new_values) return JSON_OUT_OF_MEMORY;
+
+                if (object->data.object.count > 0) {
+                     memcpy(new_keys, object->data.object.keys, object->data.object.count * sizeof(json_key_t));
+                     memcpy(new_values, object->data.object.values, object->data.object.count * sizeof(struct json_value*));
+                }
+                object->data.object.keys = new_keys;
+                object->data.object.values = new_values;
+                object->data.object.capacity = new_capacity;
+            }
+
+            // Initialize object key with interned string
+            json_string_t* str = &object->data.object.keys[object->data.object.count];
+            str->length = parser->temp_size;
+            
+            if (parser->temp_size < SMALL_STRING_SIZE) {
+                str->is_small = true;
+                memcpy(str->data.buf, interned_key, parser->temp_size);
+                str->data.buf[parser->temp_size] = '\0';
+            } else {
+                str->is_small = false;
+                str->data.ptr = (char*)interned_key;
+            }
+            
+            json_temp_buffer_clear(parser);
+        }
 
         json_consume_whitespace(parser);
         if (!json_has_more(parser) || json_next(parser) != ':') {
@@ -1057,8 +1233,6 @@ static json_error_t json_parse_object(json_parser_t* parser, json_value_t** out_
 
         object->data.object.count++;
 
-        json_temp_buffer_clear(parser);
-
         json_consume_whitespace(parser);
 
         if (!json_has_more(parser)) return JSON_UNEXPECTED_END_OF_INPUT;
@@ -1067,12 +1241,7 @@ static json_error_t json_parse_object(json_parser_t* parser, json_value_t** out_
         if (c == '}') {
             break;
         } else if (c == ',') {
-
              json_consume_whitespace(parser);
-
-             if (!json_has_more(parser) || json_peek(parser) != '"') {
-                  return JSON_MISSING_OBJECT_KEY;
-             }
              continue;
         } else {
             return JSON_EXPECTED_COMMA_OR_BRACE;
@@ -1187,37 +1356,22 @@ static json_error_t json_parse_value(json_parser_t* parser, json_value_t** out_v
 
     switch (c) {
         case '"': {
-            size_t scan_start_index = parser->index + 1;
-            bool has_escapes_or_control = false;
-            size_t string_length = 0;
-            size_t scan_index = scan_start_index;
-
-            while (scan_index < parser->length) {
-                uint8_t sc = parser->input[scan_index++];
-                if (sc == '"') {
-                    break;
-                }
-                if (sc == '\\' || sc < 0x20) {
-                    has_escapes_or_control = true;
-                    break;
-                }
-                string_length++;
-            }
-
-            if (!has_escapes_or_control && string_length <= SMALL_STRING_SIZE &&
-                scan_index <= parser->length && parser->input[scan_index - 1] == '"')
-            {
-                json_value_t* value = json_create_string_direct(parser->arena, parser->input + scan_start_index, string_length);
-                if (!value) {
-                    return JSON_OUT_OF_MEMORY;
-                }
-
-                parser->index = scan_index;
+            parser->index++;
+            
+            const char* str_start;
+            size_t str_length;
+            
+            if (json_scan_simple_string(parser, &str_start, &str_length)) {
+                json_value_t* value = json_create_value_from_arena(parser->arena);
+                if (!value) return JSON_OUT_OF_MEMORY;
+                
+                value->type = JSON_STRING;
+                json_string_init(&value->data.string, str_start, str_length, parser->arena);
+                
                 *out_value = value;
                 return JSON_NO_ERROR;
             }
 
-            json_next(parser);
             json_error_t err = json_parse_string_into_temp_buffer(parser);
             if (err != JSON_NO_ERROR) {
                 return err;
@@ -1292,6 +1446,36 @@ json_error_t json_parse(const uint8_t* data, size_t length, json_value_t** out_v
     }
     
     return err;
+}
+
+static bool try_parse_simple_string(json_parser_t* parser, const char** out_str, size_t* out_len) {
+    size_t start_idx = parser->index;
+    const uint8_t* input = parser->input;
+    size_t length = parser->length;
+    
+    // Skip the opening quote
+    if (input[start_idx] != '"') return false;
+    start_idx++;
+    
+    size_t curr_idx = start_idx;
+    while (curr_idx < length) {
+        uint8_t c = input[curr_idx];
+        
+        if (c == '"') {
+            *out_str = (const char*)(input + start_idx);
+            *out_len = curr_idx - start_idx;
+            parser->index = curr_idx + 1;
+            return true;
+        }
+        
+        if (c == '\\' || c < 0x20) {
+            return false;
+        }
+        
+        curr_idx++;
+    }
+    
+    return false;
 }
 
 
