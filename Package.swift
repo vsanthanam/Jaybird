@@ -20,6 +20,10 @@ let package = Package(
         .package(
             url: "https://github.com/ordo-one/package-benchmark",
             from: "1.0.0"
+        ),
+        .package(
+            url: "https://github.com/nicklockwood/SwiftFormat.git",
+            exact: "0.55.6"
         )
     ],
     targets: [

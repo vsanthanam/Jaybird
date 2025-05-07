@@ -1,0 +1,5 @@
+#!/bin/bash
+
+brew install jemalloc
+
+xcodebuild -scheme Jaybird-Package -destination "OS=2.4,name=Apple Vision Pro"

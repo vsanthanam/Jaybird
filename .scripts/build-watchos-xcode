@@ -1,0 +1,5 @@
+#!/bin/bash
+
+brew install jemalloc
+
+xcodebuild -scheme Jaybird-Package -destination "OS=11.4,name=Apple Watch Series 10 (46mm)"

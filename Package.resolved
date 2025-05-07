@@ -1,5 +1,5 @@
 {
-  "originHash" : "88fe8c2fe7f0f2ab77dd90874a8f86cefa61f820c59d5852fdda7f71316e3ac5",
+  "originHash" : "d91bce9b3d5d0aa417d21ceedf18f6d432c40a43aaceea5f107c96da8baeb922",
   "pins" : [
     {
       "identity" : "hdrhistogram-swift",
@@ -62,6 +62,15 @@
       "state" : {
         "revision" : "a34201439c74b53f0fd71ef11741af7e7caf01e1",
         "version" : "1.4.2"
+      }
+    },
+    {
+      "identity" : "swiftformat",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/nicklockwood/SwiftFormat.git",
+      "state" : {
+        "revision" : "aa34bc80ed4cd69af391c912741594901d57c010",
+        "version" : "0.55.6"
       }
     },
     {
