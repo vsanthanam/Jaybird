@@ -1,0 +1,5 @@
+#!/bin/bash
+
+brew install jemalloc
+
+xcodebuild -scheme Jaybird-Package -sdk iphonesimulator -destination "OS=18.4,name=iPhone 16"

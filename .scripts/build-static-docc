@@ -1,0 +1,10 @@
+#!/bin/bash
+
+brew install jemalloc
+
+swift package --allow-writing-to-directory docs \
+    generate-documentation --target Jaybird \
+    --disable-indexing \
+    --transform-for-static-hosting \
+    --hosting-base-path docs \
+    --output-path docs
