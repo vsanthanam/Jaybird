@@ -56,7 +56,7 @@ nonisolated(unsafe) let benchmarks = {
     for (name, data) in files {
         Benchmark("Parse (\(name))") { benchmark in
             for _ in benchmark.scaledIterations {
-//                _ = try Jaybird.JSON(data)
+                _ = try Jaybird.JSON(data)
 //                _ = try JSONSerialization.jsonObject(with: data)
             }
         }

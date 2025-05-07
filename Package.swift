@@ -6,7 +6,12 @@ import PackageDescription
 let package = Package(
     name: "Jaybird",
     platforms: [
-        .macOS(.v15)
+        .macOS(.v13),
+        .macCatalyst(.v16),
+        .iOS(.v16),
+        .watchOS(.v9),
+        .tvOS(.v16),
+        .visionOS(.v1)
     ],
     products: [
         .library(
@@ -26,11 +31,11 @@ let package = Package(
         .target(
             name: "Jaybird",
             dependencies: [
-                "Parser"
+                "JaybirdC"
             ]
         ),
         .target(
-            name: "Parser",
+            name: "JaybirdC",
             publicHeadersPath: "."
         ),
         .testTarget(
@@ -62,6 +67,9 @@ let package = Package(
                 .copy("benchmark-strings.json"),
                 .copy("benchmark-numeric.json"),
                 .copy("benchmark-integers.json"),
+            ],
+            swiftSettings: [
+                .define("BENCHMARK_DISABLE_JEMALLOC")
             ],
             plugins: [
                 .plugin(name: "BenchmarkPlugin", package: "package-benchmark")

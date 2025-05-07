@@ -23,8 +23,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef Parser_h
-#define Parser_h
+#ifndef JaybirdC_h
+#define JaybirdC_h
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -177,4 +177,4 @@ const char* json_get_object_key(const json_value_t* object, size_t index);
  */
 json_value_t* json_get_object_value(const json_value_t* object, size_t index);
 
-#endif /* Parser_h */
+#endif /* JaybirdC_h */

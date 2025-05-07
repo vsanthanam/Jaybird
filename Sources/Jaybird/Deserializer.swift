@@ -24,7 +24,7 @@
 // SOFTWARE.
 
 import Foundation
-import Parser
+import JaybirdC
 
 extension JSON {
 
@@ -79,7 +79,7 @@ extension JSON {
 
                 case JSON_ARRAY:
                     let count = json_get_array_size(value)
-                    var array = [JSON]()
+                    var array = Array()
                     array.reserveCapacity(count)
 
                     for i in 0..<count {
@@ -92,7 +92,7 @@ extension JSON {
 
                 case JSON_OBJECT:
                     let count = json_get_object_size(value)
-                    var dict = [String: JSON]()
+                    var dict = Object()
                     dict.reserveCapacity(count)
 
                     for i in 0..<count {

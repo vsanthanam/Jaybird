@@ -71,14 +71,20 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
 
     // MARK: - API
 
+    /// A JSON object
+    public typealias Object = [String: JSON]
+
+    /// A JSON array
+    public typealias Array = [JSON]
+
     /// A JSON literal value
     case literal(Literal)
 
     /// A JSON object
-    case object([String: JSON])
+    case object(Object)
 
     /// A JSON array
-    case array([JSON])
+    case array(Array)
 
     /// A JSON numeric value
     case numeric(Numeric)
@@ -117,7 +123,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     }
 
     /// The JSON value as an object
-    public var objectValue: [String: JSON] {
+    public var objectValue: Object {
         get throws {
             switch self {
             case let .object(object):
@@ -129,7 +135,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     }
 
     /// The JSON value as an arrary
-    public var arrayValue: [JSON] {
+    public var arrayValue: Array {
         get throws {
             switch self {
             case let .array(array):
@@ -250,6 +256,36 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         return try value(forSubscript: `subscript`)
     }
 
+    /// Retrieve a value from the JSON object using a specified path
+    /// - Parameter path: The path to use for lookup
+    /// - Returns: The JSON value at the specified path
+    public func value(
+        atPath path: [Subscript] /// Retrieve a value from the JSON object using a specified path
+        /// - Parameter path: The path to use for lookup
+        /// - Returns: The JSON value at the specified path
+    ) throws -> JSON {
+        var json = self
+        try path.forEach { component in
+            json = try json.value(forSubscript: component)
+        }
+        return json
+    }
+
+    /// Retrieve a value from the JSON object using a specified path
+    /// - Parameter path: The path to use for lookup
+    /// - Returns: The JSON value at the specified path
+    @available(macOS 14.0, macCatalyst 17.0, iOS 17.0, watchOS 10.0, tvOS 17.0, visionOS 1.0, *)
+    public func value<each PathComponent>(
+        atPath path: repeat each PathComponent
+    ) throws -> JSON where repeat each PathComponent: JSONSubscriptConvertible {
+        var json = self
+        for component in repeat each path {
+            let `subscript` = Subscript(component)
+            json = try json.value(forSubscript: `subscript`)
+        }
+        return json
+    }
+
     /// Set a value in the JSON object using a specified key
     /// - Parameters:
     ///   - value: The JSON value to set
@@ -354,6 +390,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     /// - Parameters:
     ///   - fileURL: The file URL write to
     ///   - shouldOverwrite: Whether or not existing content should be overwritten
+    @available(macOS 13.0, macCatalyst 16.0, *)
     public func write(
         fileURL: URL,
         shouldOverwrite: Bool = false

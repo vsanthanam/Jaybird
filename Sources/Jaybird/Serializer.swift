@@ -137,7 +137,7 @@ extension JSON {
             into bytes: inout [UInt8]
         ) {
             let str = String(integer)
-            bytes += Array(str.utf8)
+            bytes += Swift.Array(str.utf8)
         }
 
         static func serialize(
@@ -203,7 +203,7 @@ extension JSON {
         }
 
         static func serialize(
-            array: [JSON],
+            array: Array,
             into bytes: inout [UInt8],
             level: Int?,
             options: Options
@@ -249,7 +249,7 @@ extension JSON {
         }
 
         static func serialize(
-            object: [String: JSON],
+            object: Object,
             into bytes: inout [UInt8],
             level: Int?,
             options: Options
@@ -265,7 +265,7 @@ extension JSON {
                 bytes += [0x0A] // Newline
             }
 
-            let keys = options.contains(.sortedKeys) ? Array(object.keys.sorted()) : Array(object.keys)
+            let keys = options.contains(.sortedKeys) ? Swift.Array(object.keys.sorted()) : Swift.Array(object.keys)
             for key in keys.dropLast() {
                 let value = object[key].unsafelyUnwrapped
                 if value != .null || !options.contains(.omitNullKeys) {

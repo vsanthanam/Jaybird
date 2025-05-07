@@ -23,11 +23,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+import Foundation
 import Jaybird
 import Testing
 
 @Suite("Deserializer Tests")
 struct DeserializerTests {
+
+    @Test("Byte Order Mark Deserialization")
+    func testBom() throws {
+        let data = Data([0xEF, 0xBB, 0xBF, 0x7B, 0x7D])
+        let json = try JSON(data)
+        #expect(json == [:])
+    }
 
     @Suite("Literal Value Deserialization Tests")
     struct LiteralTests {
