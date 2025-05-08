@@ -28,9 +28,33 @@ import Foundation
 @available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension JSON {
 
+    /// A JSON serializer
     public enum Serializer {
 
+        /// The availabile options when serializing a ``JSON`` value into a byte buffer or Swift string
         public struct Options: OptionSet, Equatable, Hashable, Sendable {
+
+            // MARK: - API
+
+            /// Whether or not the serialized JSON should include additional whitespace to improve readability
+            public static let prettyPrinted = Options(rawValue: 1 << 0)
+
+            /// Whether or not null keys should be omitted from JSON objects
+            public static let omitNullKeys = Options(rawValue: 1 << 1)
+
+            /// Whether or not JSON keys should be sorted alphabetically
+            public static let sortedKeys = Options(rawValue: 1 << 2)
+
+            /// Whether or not non-root JSON should be allowed
+            public static let allowFragments = Options(rawValue: 1 << 3)
+
+            /// Whether or not the serialized JSON should contain a UTF-8 byte order mark
+            public static let includeByteOrderMark = Options(rawValue: 1 << 4)
+
+            /// The default set of options
+            public static let `default`: Options = [.sortedKeys, .allowFragments]
+
+            // MARK: - OptionSet
 
             public init(rawValue: Int) {
                 self.rawValue = rawValue
@@ -38,31 +62,29 @@ extension JSON {
 
             public let rawValue: Int
 
-            public static let prettyPrinted = Options(rawValue: 1 << 0)
-
-            public static let omitNullKeys = Options(rawValue: 1 << 1)
-
-            public static let sortedKeys = Options(rawValue: 1 << 2)
-
-            public static let allowFragments = Options(rawValue: 1 << 3)
-
-            public static let includeByteOrderMark = Options(rawValue: 1 << 4)
-
-            public static let `default`: Options = [.sortedKeys, .allowFragments]
-
         }
 
+        /// Create a Swift string from a ``JSON`` value
+        /// - Parameters:
+        ///   - json: The JSON value to serialize
+        ///   - options: The serialization options
+        /// - Returns: A Swift string representing the provided JSON value
         public static func string(
             from json: JSON,
             options: Options = .default
         ) throws -> String {
             let data = try data(from: json, options: options)
             guard let str = String(data: data, encoding: .utf8) else {
-                throw SerializationError.utf8conversionFailure
+                throw JSONSerializationError.utf8conversionFailure
             }
             return str
         }
 
+        /// Create a byte buffer from a ``JSON`` value
+        /// - Parameters:
+        ///   - json: The JSON value to serialize
+        ///   - options: The serialization options
+        /// - Returns: The byte buffer containing a UTF-8 encoded string representing the provided JSON value
         public static func data(
             from json: JSON,
             options: Options = .default,
@@ -71,7 +93,7 @@ extension JSON {
             if !options.contains(.allowFragments) {
                 switch json {
                 case .literal, .numeric, .string:
-                    throw SerializationError.invalidFragment
+                    throw JSONSerializationError.invalidFragment
                 case .array, .object:
                     break
                 }
@@ -83,7 +105,9 @@ extension JSON {
             return Data(bytes)
         }
 
-        static func serializeBOM(into bytes: inout [UInt8]) {
+        static func serializeBOM(
+            into bytes: inout [UInt8]
+        ) {
             bytes += [0xEF, 0xBB, 0xBF]
         }
 
@@ -148,7 +172,7 @@ extension JSON {
             guard double == double,
                   double != .infinity,
                   double != -.infinity else {
-                throw SerializationError.invalidFloat
+                throw JSONSerializationError.invalidFloat
             }
             let absValue = abs(double)
             if absValue != 0, (absValue >= 1e7 || absValue < 1e-6) {
@@ -319,12 +343,12 @@ extension JSON {
         }
     }
 
-    public enum SerializationError: Error {
+}
 
-        case invalidFloat
-        case utf8conversionFailure
-        case invalidFragment
-
-    }
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+public enum JSONSerializationError: Error {
+    case invalidFloat
+    case utf8conversionFailure
+    case invalidFragment
 
 }

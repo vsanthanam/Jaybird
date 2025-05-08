@@ -139,7 +139,9 @@ typedef struct {
 
 
 static json_memory_block_t* json_arena_add_block(json_memory_arena_t* arena, size_t min_size);
+
 static void* json_arena_alloc(json_memory_arena_t* arena, size_t size);
+
 static bool try_parse_simple_string(json_parser_t* parser, const char** out_str, size_t* out_len);
 
 static void json_string_pool_init(string_pool_t* pool, json_memory_arena_t* arena) {
@@ -1454,5 +1456,3 @@ static bool try_parse_simple_string(json_parser_t* parser, const char** out_str,
     
     return false;
 }
-
-

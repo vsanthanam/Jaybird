@@ -35,7 +35,7 @@ extension JSON {
             from string: String
         ) throws -> JSON {
             guard let data = string.data(using: .utf8) else {
-                throw ParseError("Failed to convert string to data")
+                throw JSONDeserializationError("Failed to convert string to data")
             }
             return try object(from: data)
         }
@@ -49,11 +49,11 @@ extension JSON {
             }
 
             guard result == JSON_NO_ERROR else {
-                throw ParseError("JSON parsing error: \(String(cString: json_get_error_message(result)))")
+                throw JSONDeserializationError("JSON parsing error: \(String(cString: json_get_error_message(result)))")
             }
 
             guard let jsonValue else {
-                throw ParseError("Failed to parse JSON: null result")
+                throw JSONDeserializationError.unknown
             }
 
             func convertToJSON(
@@ -106,7 +106,7 @@ extension JSON {
                     return .object(dict)
 
                 default:
-                    throw ParseError("Unknown JSON type")
+                    throw JSONDeserializationError.unknown
                 }
             }
 
@@ -122,14 +122,17 @@ extension JSON {
 }
 
 @available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
-private struct ParseError: Error, CustomStringConvertible {
+public struct JSONDeserializationError: Error, CustomStringConvertible {
+
     init(_ message: String) {
         self.message = message
     }
 
-    var description: String {
+    public var description: String {
         message
     }
 
-    let message: String
+    public let message: String
+
+    static let unknown: JSONDeserializationError = .init("Unknown JSON Parsing Error")
 }
