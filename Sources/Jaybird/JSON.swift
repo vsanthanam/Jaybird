@@ -63,7 +63,7 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     }
 
     /// Create a `JSON` object declaratively
-    /// - Parameter content: The fields in the object
+    /// - Parameter fields: The fields in the object
     public init(
         @Builder fields: () -> JSON
     ) {
@@ -77,6 +77,9 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
 
     /// A JSON array
     public typealias Array = [JSON]
+
+    /// A JSON string
+    public typealias String = Swift.String
 
     /// A JSON literal value
     case literal(Literal)
@@ -374,14 +377,12 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     }
 
     /// Serialize the JSON object to a byte buffer
-    /// - Parameter options: Serialization options
     /// - Returns: The serialized byte buffe
     public func serialize() throws -> Data {
         try Serializer.data(from: self)
     }
 
     /// Produce a string representation of the JSON object
-    /// - Parameter options: Serialization options
     /// - Returns: The serialized string
     public func stringify() throws -> String {
         try Serializer.string(from: self)
@@ -390,12 +391,15 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
     /// Write the JSON model to disk
     /// - Parameters:
     ///   - fileURL: The file URL write to
+    ///   - options: Serialization options to use when writing the JSON model to disk
     ///   - shouldOverwrite: Whether or not existing content should be overwritten
     @available(macOS 13.0, macCatalyst 16.0, *)
+    @discardableResult
     public func write(
         fileURL: URL,
+        options: JSON.Serializer.Options = .default,
         shouldOverwrite: Bool = false
-    ) async throws {
+    ) async throws -> Data {
         if FileManager.default.fileExists(atPath: fileURL.path()) {
             if shouldOverwrite {
                 try FileManager.default.removeItem(at: fileURL)
@@ -409,8 +413,13 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         try Task.checkCancellation()
         try data.write(to: fileURL, options: .withoutOverwriting)
         try Task.checkCancellation()
+        return data
     }
 
+    /// Retreive a value from the JSON object using a specified subscript
+    /// - Parameter subscript: A subscript to use for lookup
+    /// - Returns: The JSON value at the specified subscript
+    /// - Warning: This subscript is unsafe and should only be used when you are sure the subscript exists. A missing subscript will result in a runtime failure.
     public subscript(
         _ subscript: Subscript
     ) -> JSON {
@@ -422,6 +431,10 @@ public enum JSON: Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, Ex
         }
     }
 
+    /// Retreive a value from the JSON object using a specified subscript
+    /// - Parameter subscript: A subscript to use for lookup
+    /// - Returns: The JSON value at the specified subscript
+    /// - Warning: This subscript is unsafe and should only be used when you are sure the subscript exists. A missing subscript will result in a runtime failure.
     public subscript(
         _ subscript: some JSONSubscriptConvertible
     ) -> JSON {

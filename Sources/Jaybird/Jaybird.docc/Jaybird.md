@@ -8,10 +8,10 @@ JSON is a library for working with JSON objects in Swift.
 
 It contains the following APIs:
 
-- A an ergonomic Swift value type used to represent JSON objects
-- APIs to easily create and mutate instances of this type directly in Swift
-- APIs to deserialize UTF-8 encoded data or Swift Strings into the provided Swift representation.
-- Methods to serializing the Swift JSON representation into Swift strings or UTF-8 encoded data
+- A an ergonomic Swift value type used to represent JSON objects.
+- APIs to easily create and mutate instances of this type directly in Swift.
+- APIs to deserialize byte buffers or Swift strings into the JSON value type.
+- APIs to serialize the Swift JSON representation into Swift strings or byte buffers.
 - APIs support encoding and decoding other Swift Types to and from a JSON representation.
 
 ### Representing JSON in Swift
@@ -66,7 +66,7 @@ The enumeration is very explicit, but can lead to code that is both more cumbers
 To avoid these issues, you can initialize ``JSON`` using Swift literals:
 
 ```swift
-import Athena
+import Jaybird
 
 let steve: JSON = [
     "first_name": "Steve",
@@ -101,12 +101,12 @@ You can easily add support for your custom swift types by adding conformance to 
 Once implemented, you can create an instance of your type from valid ``JSON`` like this:
 
 ```swift
-import Athena
+import Jaybird
 
 struct MyType: JSONCodable { ... }
 
 let firstInstance = MyType( ... )
-let json = MyType.toJSON()
+let json = JSON(firstInstance)
 let secondInstsance = try MyType(json: json)
 ```
 
@@ -122,42 +122,3 @@ let data = try Data(serializing: steve)
 ```
 
 Fore more information, see <doc:Serializing> and <doc:Deserializing>.
-
-## Topics
-
-### Models
-
-- ``JSON``
-- ``JSON/Number``
-- ``JSON/Literal``
-
-### Subscripting
-
-- <doc:Subscripting>
-- ``JSON/Subscript``
-- ``JSON/Path``
-- ``JSONSubscriptRepresentable``
-
-### Encoding & Decoding
-
-- <doc:EncodingDecoding>
-- ``JSON/Encoder``
-- ``JSON/Decoder``
-- ``JSONEncodable``
-- ``JSONDecodable``
-- ``JSONCodable``
-
-### Serialization
-
-- <doc:Serializing>
-- ``JSON/Serializer``
-- ``JSON/Serializer/Options``
-
-### Deserialization
-
-- <doc:Deserializing>
-- ``JSON/Deserializer``
-- ``JSON/Deserializer/Options``
-- ``JSON/Deserializer/EncodingDetector``
-
-### Errors
