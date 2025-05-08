@@ -23,6 +23,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension JSON {
 
     public enum Subscript: Equatable, Hashable, Sendable {
@@ -51,24 +52,28 @@ extension JSON {
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 public protocol JSONSubscriptConvertible {
 
     var jsonSubscript: JSON.Subscript { get }
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension String: JSONSubscriptConvertible {
 
     public var jsonSubscript: JSON.Subscript { .key(self) }
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension Int: JSONSubscriptConvertible {
 
     public var jsonSubscript: JSON.Subscript { .index(self) }
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension JSONSubscriptConvertible where Self: RawRepresentable, RawValue: JSONSubscriptConvertible {
 
     public var jsonSubscript: JSON.Subscript { rawValue.jsonSubscript }

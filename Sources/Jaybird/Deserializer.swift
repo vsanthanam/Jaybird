@@ -26,6 +26,7 @@
 import Foundation
 import JaybirdC
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension JSON {
 
     public enum Deserializer {
@@ -120,6 +121,7 @@ extension JSON {
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 private struct ParseError: Error, CustomStringConvertible {
     init(_ message: String) {
         self.message = message

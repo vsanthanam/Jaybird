@@ -23,20 +23,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 public typealias JSONCodable = JSONDecodable & JSONEncodable
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 public protocol JSONEncodable {
 
     func encodeToJSON() -> JSON
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 public protocol JSONDecodable {
 
     init(json: JSON) throws
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension JSON: JSONCodable {
 
     public func encodeToJSON() -> JSON {
@@ -49,10 +53,9 @@ extension JSON: JSONCodable {
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension Bool: JSONCodable {
 
-    @inline(__always)
-    @inlinable
     public func encodeToJSON() -> JSON {
         self ? .literal(.true) : .literal(.false)
     }
@@ -63,10 +66,9 @@ extension Bool: JSONCodable {
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension JSON.Literal: JSONCodable {
 
-    @inline(__always)
-    @inlinable
     public func encodeToJSON() -> JSON {
         .literal(self)
     }
@@ -77,10 +79,9 @@ extension JSON.Literal: JSONCodable {
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension Int: JSONCodable {
 
-    @inline(__always)
-    @inlinable
     public func encodeToJSON() -> JSON {
         .numeric(.int(self))
     }
@@ -91,10 +92,9 @@ extension Int: JSONCodable {
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension Double: JSONCodable {
 
-    @inline(__always)
-    @inlinable
     public func encodeToJSON() -> JSON {
         .numeric(.double(self))
     }
@@ -105,10 +105,9 @@ extension Double: JSONCodable {
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension JSON.Numeric: JSONCodable {
 
-    @inline(__always)
-    @inlinable
     public func encodeToJSON() -> JSON {
         .numeric(self)
     }
@@ -119,10 +118,9 @@ extension JSON.Numeric: JSONCodable {
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension String: JSONCodable {
 
-    @inline(__always)
-    @inlinable
     public func encodeToJSON() -> JSON {
         .string(self)
     }
@@ -133,6 +131,7 @@ extension String: JSONCodable {
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension Array: JSONEncodable where Element: JSONEncodable {
 
     public func encodeToJSON() -> JSON {
@@ -141,6 +140,7 @@ extension Array: JSONEncodable where Element: JSONEncodable {
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension Array: JSONDecodable where Element: JSONDecodable {
 
     public init(json: JSON) throws {
@@ -149,6 +149,7 @@ extension Array: JSONDecodable where Element: JSONDecodable {
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension Dictionary: JSONEncodable where Key == String, Value: JSONEncodable {
 
     public func encodeToJSON() -> JSON {
@@ -157,6 +158,7 @@ extension Dictionary: JSONEncodable where Key == String, Value: JSONEncodable {
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension Dictionary: JSONDecodable where Key == String, Value: JSONDecodable {
 
     public init(json: JSON) throws {
@@ -165,6 +167,7 @@ extension Dictionary: JSONDecodable where Key == String, Value: JSONDecodable {
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension JSONEncodable where Self: RawRepresentable, RawValue: JSONEncodable {
 
     public func encodeToJSON() -> JSON {
@@ -173,6 +176,7 @@ extension JSONEncodable where Self: RawRepresentable, RawValue: JSONEncodable {
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension JSONDecodable where Self: RawRepresentable, RawValue: JSONDecodable {
 
     public init(json: JSON) throws {

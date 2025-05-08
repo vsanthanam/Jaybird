@@ -25,6 +25,7 @@
 
 import Foundation
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension JSON {
 
     public enum Literal: String, Equatable, Hashable, Sendable, ExpressibleByBooleanLiteral, ExpressibleByNilLiteral {
@@ -81,12 +82,14 @@ extension JSON {
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 public protocol JSONLiteralConvertible {
 
     var jsonLiteral: JSON.Literal { get }
 
 }
 
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
 extension Bool: JSONLiteralConvertible {
 
     public var jsonLiteral: JSON.Literal {
