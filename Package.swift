@@ -24,7 +24,11 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/ordo-one/package-benchmark",
-            exact: "1.29.3"
+            from: "1.0.0"
+        ),
+        .package(
+            url: "https://github.com/nicklockwood/SwiftFormat.git",
+            exact: "0.55.6"
         )
     ],
     targets: [
