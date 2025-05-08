@@ -1,5 +1,5 @@
 {
-  "originHash" : "88fe8c2fe7f0f2ab77dd90874a8f86cefa61f820c59d5852fdda7f71316e3ac5",
+  "originHash" : "657d9804a7d7e41e015a97f67c0a582cace176852eafceaec352351580b7ffbe",
   "pins" : [
     {
       "identity" : "hdrhistogram-swift",
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ordo-one/package-benchmark",
       "state" : {
-        "revision" : "ec06262cf296aaa4bd40ed654ccdf9a87fe1879f",
-        "version" : "1.29.2"
+        "revision" : "5c4569a9e7e9acac4db43f31e58252539ca71f0b",
+        "version" : "1.29.3"
       }
     },
     {
