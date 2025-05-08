@@ -24,7 +24,7 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/ordo-one/package-benchmark",
-            from: "1.0.0"
+            exact: "1.29.3"
         )
     ],
     targets: [
