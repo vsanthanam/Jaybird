@@ -2,13 +2,6 @@
 
 A typed API for interacting with JSON objects in Swift
 
-<<<<<<< Updated upstream
-## Overview
-
-<!--@START_MENU_TOKEN@-->Text<!--@END_MENU_TOKEN@-->
-
-=======
->>>>>>> Stashed changes
 ## Topics
 
 ### Initializers
