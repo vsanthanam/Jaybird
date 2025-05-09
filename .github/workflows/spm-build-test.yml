@@ -18,7 +18,7 @@ jobs:
     - name: Select Xcode Version
       run: ./.scripts/xcode-select
     - name: Build Jaybird
-      run: BENCHMARK_DISABLE_JEMALLOC=1 swift build -v --build-path .build
+      run: swift build -v --build-path .build
     - name: Compress Build
       run: zip -r build.zip .build
     - name: Upload Build
@@ -42,7 +42,7 @@ jobs:
       - name: Decompress Build
         run: unzip build.zip
       - name: Test Jaybird
-        run: BENCHMARK_DISABLE_JEMALLOC=1 swift test
+        run: swift test
   build-ubuntu-spm:
     runs-on: ubuntu-latest
     outputs:
@@ -53,7 +53,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Build Jaybird
-        run: BENCHMARK_DISABLE_JEMALLOC=1 swift build -v --build-path .build
+        run: swift build -v --build-path .build
       - name: Install `zip`
         run: apt-get update && apt-get install -y zip
       - name: Compress Build
@@ -81,41 +81,41 @@ jobs:
       - name: Decompress Build
         run: unzip build.zip
       - name: Test Jaybird
-        run: BENCHMARK_DISABLE_JEMALLOC=1 swift test
-  # build-windows-spm:
-  #   runs-on: windows-latest
-  #   outputs:
-  #     artifact-name: windows-build
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #     - name: Setup Swift 6.1
-  #       uses: compnerd/gha-setup-swift@main
-  #       with:
-  #         branch: swift-6.1-release
-  #         tag: 6.1-RELEASE
-  #     - name: Build Jaybird
-  #       run: swift build -v --build-path .build
-  #     - name: Compress Build
-  #       run: Compress-Archive -Path .build -DestinationPath build.zip
-  #     - name: Upload Build
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: windows-build
-  #         path: build.zip
-  # test-windows-spm:
-  #   needs: build-windows-spm
-  #   runs-on: windows-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #     - name: Setup Swift 6.1
-  #       uses: compnerd/gha-setup-swift@main
-  #       with:
-  #         branch: swift-6.1-release
-  #         tag: 6.1-RELEASE
-  #     - name: Test Jaybird
-  #       run: swift test
+        run: swift test
+  build-windows-spm:
+    runs-on: windows-latest
+    outputs:
+      artifact-name: windows-build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Swift 6.1
+        uses: compnerd/gha-setup-swift@main
+        with:
+          branch: swift-6.1-release
+          tag: 6.1-RELEASE
+      - name: Build Jaybird
+        run: swift build -v --build-path .build
+      - name: Compress Build
+        run: Compress-Archive -Path .build -DestinationPath build.zip
+      - name: Upload Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: build.zip
+  test-windows-spm:
+    needs: build-windows-spm
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Swift 6.1
+        uses: compnerd/gha-setup-swift@main
+        with:
+          branch: swift-6.1-release
+          tag: 6.1-RELEASE
+      - name: Test Jaybird
+        run: swift test
   # test-android:
   #   runs-on: ubuntu-latest
   #   steps:
