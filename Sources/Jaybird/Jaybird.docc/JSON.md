@@ -20,10 +20,6 @@ A typed API for interacting with JSON objects in Swift
 
 - ``Literal``
 - ``Numeric``
-<<<<<<< Updated upstream
-- ``String``
-=======
->>>>>>> Stashed changes
 - ``Object``
 - ``Array``
 
