@@ -188,3 +188,30 @@ extension JSONDecodable where Self: RawRepresentable, RawValue: JSONDecodable {
     }
 
 }
+
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+extension Optional: JSONEncodable where Wrapped: JSONEncodable {
+
+    public func encodeToJSON() -> JSON {
+        switch self {
+        case .none:
+            nil
+        case let .some(wrapped):
+            wrapped.encodeToJSON()
+        }
+    }
+
+}
+
+@available(macOS 13.0, macCatalyst 16.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+extension Optional: JSONDecodable where Wrapped: JSONDecodable {
+
+    public init(json: JSON) throws {
+        if json == nil {
+            self = .none
+        } else {
+            self = try .some(Wrapped(json: json))
+        }
+    }
+
+}

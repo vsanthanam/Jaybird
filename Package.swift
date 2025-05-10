@@ -1,6 +1,7 @@
 // swift-tools-version: 6.1
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
+import CompilerPluginSupport
 import PackageDescription
 
 let package = Package(
@@ -19,9 +20,19 @@ let package = Package(
             targets: [
                 "Jaybird"
             ]
+        ),
+        .library(
+            name: "JaybirdMacros",
+            targets: [
+                "JaybirdMacros"
+            ]
         )
     ],
     dependencies: [
+        .package(
+            url: "https://github.com/swiftlang/swift-syntax.git",
+            exact: "601.0.1"
+        ),
         .package(
             url: "https://github.com/nicklockwood/SwiftFormat.git",
             exact: "0.55.6"
@@ -29,19 +40,51 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "Jaybird",
-            dependencies: [
-                "JaybirdC"
-            ]
+            name: "JaybirdParser",
+            publicHeadersPath: "."
         ),
         .target(
-            name: "JaybirdC",
-            publicHeadersPath: "."
+            name: "Jaybird",
+            dependencies: [
+                "JaybirdParser"
+            ]
         ),
         .testTarget(
             name: "JaybirdTests",
             dependencies: [
                 "Jaybird"
+            ]
+        ),
+        .target(
+            name: "JaybirdMacros",
+            dependencies: [
+                "JaybirdCompilerPlugin",
+                "Jaybird"
+            ]
+        ),
+        .testTarget(
+            name: "JaybirdMacrosTests",
+            dependencies: [
+                "JaybirdMacros",
+                "Jaybird",
+                "JaybirdCompilerPlugin",
+                .product(
+                    name: "SwiftSyntaxMacrosTestSupport",
+                    package: "swift-syntax"
+                ),
+            ]
+        ),
+        .macro(
+            name: "JaybirdCompilerPlugin",
+            dependencies: [
+                .product(
+                    name: "SwiftSyntaxMacros",
+                    package: "swift-syntax"
+                ),
+                .product(
+                    name: "SwiftCompilerPlugin",
+                    package: "swift-syntax"
+                )
             ]
         )
     ]
