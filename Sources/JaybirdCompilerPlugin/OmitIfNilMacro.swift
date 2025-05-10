@@ -35,7 +35,42 @@ public struct OmitIfNilMacro: PeerMacro {
         providingPeersOf declaration: some SwiftSyntax.DeclSyntaxProtocol,
         in context: some SwiftSyntaxMacros.MacroExpansionContext
     ) throws -> [SwiftSyntax.DeclSyntax] {
-        []
+        guard let varDecl = declaration.as(VariableDeclSyntax.self) else {
+            throw MacroError("@OmitIfNil can only be applied to stored properties")
+        }
+
+        guard varDecl.bindings.count == 1 else {
+            throw MacroError("@OmitIfNil can only be applied to a single stored property")
+        }
+
+        let binding = try varDecl.bindings.first.mustExist()
+
+        guard binding.accessorBlock == nil else {
+            throw MacroError("@OmitIfNil can only be applied to stored properties, not computed properties")
+        }
+
+        guard let typeAnnotation = binding.typeAnnotation else {
+            throw MacroError("@OmitIfNil can only be applied to properties with explicit type annotations")
+        }
+
+        let type = typeAnnotation.type
+        let isOptional = if let identifierType = type
+            .as(IdentifierTypeSyntax.self),
+            identifierType.name.text == "Optional" {
+            true
+        } else if type.is(OptionalTypeSyntax.self) {
+            true
+        } else if type.is(ImplicitlyUnwrappedOptionalTypeSyntax.self) {
+            true
+        } else {
+            false
+        }
+
+        guard isOptional else {
+            throw MacroError("@OmitIfNil can only be applied to properties with optional types")
+        }
+
+        return []
     }
 
 }

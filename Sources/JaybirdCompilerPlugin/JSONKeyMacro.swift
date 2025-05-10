@@ -35,7 +35,20 @@ public struct JSONKeyMacro: PeerMacro {
         providingPeersOf declaration: some SwiftSyntax.DeclSyntaxProtocol,
         in context: some SwiftSyntaxMacros.MacroExpansionContext
     ) throws -> [SwiftSyntax.DeclSyntax] {
-        []
+        guard let varDecl = declaration.as(VariableDeclSyntax.self) else {
+            throw MacroError("@OmitIfNil can only be applied to stored properties")
+        }
+
+        guard varDecl.bindings.count == 1 else {
+            throw MacroError("@OmitIfNil can only be applied to a single stored property")
+        }
+
+        guard try varDecl.bindings.first.mustExist().accessorBlock == nil else {
+            throw MacroError("@OmitIfNil can only be applied to stored properties, not computed properties")
+        }
+
+        return []
+
     }
 
 }

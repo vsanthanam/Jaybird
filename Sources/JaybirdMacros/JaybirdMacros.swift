@@ -60,6 +60,20 @@ public macro JSONKey(
     type: "JSONKeyMacro"
 )
 
+/// A macro that allows optional properties to be omitted from JSON encoding when their value is nil.
+///
+/// This macro must only be applied to stored properties with optional types.
+///
+/// Example:
+/// ```swift
+/// struct User {
+///     let id: String
+///     @OmitIfNil var nickname: String?
+/// }
+/// ```
+///
+/// In this example, when encoding a `User` to JSON where `nickname` is nil,
+/// the resulting JSON will not contain the "nickname" key.
 @attached(peer)
 public macro OmitIfNil(
     _ omitIfNil: Bool = true

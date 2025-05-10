@@ -40,14 +40,14 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "Jaybird",
-            dependencies: [
-                "JaybirdC"
-            ]
+            name: "JaybirdParser",
+            publicHeadersPath: "."
         ),
         .target(
-            name: "JaybirdC",
-            publicHeadersPath: "."
+            name: "Jaybird",
+            dependencies: [
+                "JaybirdParser"
+            ]
         ),
         .testTarget(
             name: "JaybirdTests",
@@ -66,7 +66,12 @@ let package = Package(
             name: "JaybirdMacrosTests",
             dependencies: [
                 "JaybirdMacros",
-                "Jaybird"
+                "Jaybird",
+                "JaybirdCompilerPlugin",
+                .product(
+                    name: "SwiftSyntaxMacrosTestSupport",
+                    package: "swift-syntax"
+                ),
             ]
         ),
         .macro(
